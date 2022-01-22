@@ -1,0 +1,12 @@
+{
+    "subsystem": "utils",
+    "parts": {
+        "utils_memory": {
+            "module_list": [
+                "//utils/memory/libdmabufheap:libdmabufheap"
+            ],
+            "inner_kits": [],
+            "test_list": []
+        }
+    }
+}
