@@ -6,7 +6,9 @@
                 "//utils/memory/libdmabufheap:libdmabufheap"
             ],
             "inner_kits": [],
-            "test_list": []
+            "test_list": [
+                "//utils/memory/libdmabufheap/test:unittest"
+            ]
         }
     }
 }
