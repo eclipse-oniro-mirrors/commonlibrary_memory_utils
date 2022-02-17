@@ -1,36 +1,37 @@
-# utils_memory
+# The Part of Memory System Library
 
-#### Description
-{**When you're done, you can delete the content in this README and update the file with details for others getting started with your repository**}
+-   [Introduction](#section_introduction)
+-   [Directory Structure](#section_catalogue)
+-   [Memory System Library](#section_libraries)
+    -   [libdmabufheap system library](#section_libdmabufheap)
+-   [Usage Guidelines](#section_usage)
 
-#### Software Architecture
-Software architecture description
+## Introduction<a name="section_introduction"></a>
 
-#### Installation
+The part of *Memory system Library* belongs to the subsystem named *Utils Subsystem*. It provides the system library for upper-layer services to operate memory, ensuring the stability of upper-layer services.
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## Directory Structure<a name="section_catalogue"></a>
 
-#### Instructions
+```
+/utils/memory
+└── libdmabufheap           # DMA memory allocation system library
+    ├── BUILD.gn
+    ├── include             # DMA memory allocation system library header directory
+    │   └── dmabuf_alloc.h
+    ├── src                 # DMA memory allocation system library source directory
+    │   └── dmabuf_alloc.c
+    └── test                # DMA memory allocation system library usecase directory
+```
+## Memory System Libraries<a name="section_libraries"></a>
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+The memory system library is a component of the system library that integrates memory operations and manages them in a unified manner.
 
-#### Contribution
+### libdmabufheap system library<a name="section_libdmabufheap"></a>
 
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
+The memory system library provides interfaces for services to allocate and share shared memory. By allocating and sharing memory between hardware devices and user space, zero-copy memory between devices and processes is implemented to improve execution efficiency.
 
+## Usage Guidelines<a name="section_usage"></a>
 
-#### Gitee Feature
+System developers can add or remove this part by configuring the product definition JSON file under **/productdefine/common/products** to enable or disable this part:
 
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+` "utils:utils_memory":{} `
