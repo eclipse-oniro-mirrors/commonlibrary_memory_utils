@@ -1,39 +1,38 @@
-# utils_memory
+# 内存系统库
 
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
+-   [简介](#section_introduction)
+-   [目录](#section_catalogue)
+-   [内存系统库](#section_libraries)
+    -   [libdmabufheap系统库](#section_libdmabufheap)
+-   [使用说明](#section_usage)
 
-#### 软件架构
-软件架构说明
+## 简介<a name="section_introduction"></a>
 
+内存系统库部件位于公共基础库子系统中，为上层业务提供对应的操作内存的系统库，保证上层业务的稳定性。
 
-#### 安装教程
+## 目录<a name="section_catalogue"></a>
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+```
+/utils/memory
+└── libdmabufheap           # DMA内存分配链接库
+    ├── BUILD.gn
+    ├── include             # DMA内存分配链接库头文件目录
+    │   └── dmabuf_alloc.h
+    ├── src                 # DMA内存分配链接库源代码目录
+    │   └── dmabuf_alloc.c
+    └── test                # DMA内存分配链接库自测用例目录
+```
+## 内存系统库<a name="section_libraries"></a>
 
-#### 使用说明
+内存系统库是集成内存操作的系统库的部件，对内存操作的系统库进行统一管理。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+### libdmabufheap系统库<a name="section_libdmabufheap"></a>
 
-#### 参与贡献
+为业务提供分配共享内存的接口，通过在硬件设备和用户空间之间分配和共享内存，实现
+设备、进程间零拷贝内存，提升执行效率。
 
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+## 使用说明<a name="section_usage"></a>
 
+系统开发者可以通过配置productdefine/common/products下的产品定义json文件，增加或移除本部件，来启用或停用本部件。
 
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+` "utils:utils_memory":{} `
