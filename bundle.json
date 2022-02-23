@@ -1,0 +1,31 @@
+{
+  "name": "@utils/memory",
+  "version": "3.1.0",
+  "description": "memory base libraries",
+  "publishAs": "source",
+  "scripts": {},
+  "author": {},
+  "repository": "",
+  "license": "Apache License 2.0",
+  "component": {
+    "name": "utils_memory",
+    "subsystem": "utils",
+    "adapted_system_type": [ "standard" ],
+    "deps": {
+      "components": [
+        "libhilog",
+        "utils_base"
+      ],
+      "third_party": []
+    },
+    "build": {
+      "sub_component": [
+          "//utils/memory/libdmabufheap:libdmabufheap"
+      ],
+      "inner_kits": [],
+      "test": [
+          "//utils/memory/libdmabufheap/test:unittest"
+      ]
+    }
+  }
+}
