@@ -5,10 +5,10 @@
 -   [目录](#section_catalogue)
 -   [内存基础库](#section_libraries)
     -   [libdmabufheap系统库](#section_libdmabufheap)
-    -   [libmeminfo系统库（规划）](#section_libmeminfo)
-    -   [libmemleak系统库（规划）](#section_libmemleak)
-    -   [libpurgeable系统库（规划）](#section_libpurgeable)
-    -   [libspeculative系统库（规划）](#section_libspeculative)
+    -   [libmeminfo系统库（规划中）](#section_libmeminfo)
+    -   [libmemleak系统库（规划中）](#section_libmemleak)
+    -   [libpurgeable系统库（规划中）](#section_libpurgeable)
+    -   [libspeculative系统库（规划中）](#section_libspeculative)
 -   [使用说明](#section_usage)
 -   [相关仓](#section_projects)
 
@@ -18,9 +18,9 @@
 
 ## 部件架构图<a name="section_architecture"></a>
 
-![](figures/zh-cn_image_fwk.png)
-
 **图1** 内存基础库部件架构图
+
+![](figures/zh-cn_image_fwk.png)
 
 ## 目录<a name="section_catalogue"></a>
 
@@ -45,19 +45,19 @@
 为业务提供分配共享内存的接口，通过在硬件设备和用户空间之间分配和共享内存，实现
 设备、进程间零拷贝内存，提升执行效率。
 
-### libmeminfo系统库（规划）<a name="section_libmeminfo"></a>
+### libmeminfo系统库（规划中）<a name="section_libmeminfo"></a>
 
 提供内存占用查询接口。主要提供给内存占用维测（hidumper）、低内存查杀服务（lmks）使用。
 
-### libmemleak系统库（规划）<a name="section_libmemleak"></a>
+### libmemleak系统库（规划中）<a name="section_libmemleak"></a>
 
 配合malloc_debug做native heap内存泄漏检测。
 
-### libpurgeable系统库（规划）<a name="section_libpurgeable"></a>
+### libpurgeable系统库（规划中）<a name="section_libpurgeable"></a>
 
 提供可丢弃类型内存的管理接口。主要提供给多媒体业务图形图像编解码库使用。
 
-### libspeculative系统库（规划）<a name="section_libspeculative"></a>
+### libspeculative系统库（规划中）<a name="section_libspeculative"></a>
 
 提供投机类型内存管理接口。主要提供给系统服务使用，用于缓存预读。
 
