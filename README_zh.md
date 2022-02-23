@@ -5,10 +5,10 @@
 -   [Directory Structure](#section_catalogue)
 -   [Memory Base Libraries](#section_libraries)
     -   [libdmabufheap system library](#section_libdmabufheap)
-    -   [libmeminfo system library (in planning)](#section_libmeminfo)
-    -   [libmemleak system library (in planning)](#section_libmemleak)
-    -   [libpurgeable system library (in planning)](#section_libpurgeable)
-    -   [libspeculative system library (in planning)](#section_libspeculative)
+    -   [libmeminfo system library (planning)](#section_libmeminfo)
+    -   [libmemleak system library (planning)](#section_libmemleak)
+    -   [libpurgeable system library (planning)](#section_libpurgeable)
+    -   [libspeculative system library (planning)](#section_libspeculative)
 -   [Usage Guidelines](#section_usage)
 -   [Repositories Involved](#section_projects)
 
@@ -18,9 +18,9 @@ The part of *Memory base libraries* belongs to the subsystem named *Utils Subsys
 
 ## Architecture<a name="section_architecture"></a>
 
-![](figures/en-us_image_fwk.png)
-
 **Figure  1** Memory Base Libraries architecture
+
+![](figures/en-us_image_fwk.png)
 
 ## Directory Structure<a name="section_catalogue"></a>
 
@@ -44,19 +44,19 @@ The part of *Memory base libraries* belongs to the subsystem named *Utils Subsys
 
 The memory system library provides interfaces for services to allocate and share shared memory. By allocating and sharing memory between hardware devices and user space, zero-copy memory between devices and processes is implemented to improve execution efficiency.
 
-### libmeminfo system library (in planning)<a name="section_libmeminfo"></a>
+### libmeminfo system library (planning)<a name="section_libmeminfo"></a>
 
 It provides interfaces for memory usage queries. It is mainly used by memory footprint management service(hidumper) and low-memory killing service(lmks).
 
-### libmemleak system library (in planning)<a name="section_libmemleak"></a>
+### libmemleak system library (planning)<a name="section_libmemleak"></a>
 
 It cooperates with malloc_debug to detect memory leaks of native heap.
 
-### libpurgeable system library (in planning)<a name="section_libpurgeable"></a>
+### libpurgeable system library (planning)<a name="section_libpurgeable"></a>
 
 It provides management interfaces for discardable-type memory. It is mainly used by graphics and image codec libraries.
 
-### libspeculative system library (in planning)<a name="section_libspeculative"></a>
+### libspeculative system library (planning)<a name="section_libspeculative"></a>
 
 It provides management interfaces for speculative-type memory. It is mainly used by system services for data pre-loading.
 
