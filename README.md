@@ -22,6 +22,14 @@ The part of *Memory base libraries* belongs to the subsystem named *Utils Subsys
 
 ![](figures/en-us_image_fwk.png)
 
+| Memory Base Libraries | User                  |
+| -------------- | -------------------------- |
+| libdmabufheap  | multimedia service      |
+| libmeminfo     | memory manager service         |
+| libmemleak     | memory manager service         |
+| libpurgeable   | graphic service (planning) |
+| libspeculative | system service (planning) |
+
 ## Directory Structure<a name="section_catalogue"></a>
 
 ```
@@ -42,11 +50,11 @@ The part of *Memory base libraries* belongs to the subsystem named *Utils Subsys
 
 ### libdmabufheap system library<a name="section_libdmabufheap"></a>
 
-The memory system library provides interfaces for services to allocate and share shared memory. By allocating and sharing memory between hardware devices and user space, zero-copy memory between devices and processes is implemented to improve execution efficiency.
+The memory system library provides interfaces for the multimedia service to allocate and share shared memory. By allocating and sharing memory between hardware devices and user space, zero-copy memory between devices and processes is implemented to improve execution efficiency.
 
 ### libmeminfo system library (planning)<a name="section_libmeminfo"></a>
 
-It provides interfaces for memory usage queries. It is mainly used by memory footprint management service(hidumper) and low-memory killing service(lmks).
+It provides interfaces for memory usage queries. It is used for memory footprint query, low memory killing and other scenarios.
 
 ### libmemleak system library (planning)<a name="section_libmemleak"></a>
 
@@ -54,7 +62,7 @@ It cooperates with malloc_debug to detect memory leaks of native heap.
 
 ### libpurgeable system library (planning)<a name="section_libpurgeable"></a>
 
-It provides management interfaces for discardable-type memory. It is mainly used by graphics and image codec libraries.
+It provides management interfaces for discardable-type memory.
 
 ### libspeculative system library (planning)<a name="section_libspeculative"></a>
 
