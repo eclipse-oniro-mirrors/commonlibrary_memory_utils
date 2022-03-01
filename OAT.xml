@@ -19,27 +19,9 @@
 
 <configuration>
     <oatconfig>
-        <licensefile></licensefile>
-        <policylist>
-            <policy name="projectPolicy" desc="">
-            </policy>
-        </policylist>
-
         <filefilterlist>
             <filefilter name="defaultFilter" desc="Files not to check">
                 <filteritem type="filename" name="*.png" desc="desc files"/>
-            </filefilter>
-            <filefilter name="defaultPolicyFilter" desc="Filters for compatibility，license header policies">
-            </filefilter>
-            <filefilter name="copyrightPolicyFilter" desc="Filters for copyright header policies">
-            </filefilter>
-            <filefilter name="licenseFileNamePolicyFilter" desc="Filters for LICENSE file policies">
-            </filefilter>
-            <filefilter name="readmeFileNamePolicyFilter" desc="Filters for README file policies">
-            </filefilter>
-            <filefilter name="readmeOpenSourcefileNamePolicyFilter" desc="Filters for README.OpenSource file policies">
-            </filefilter>
-            <filefilter name="binaryFileTypePolicyFilter" desc="Filters for binary file policies">
             </filefilter>
         </filefilterlist>
     </oatconfig>
