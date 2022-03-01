@@ -1,7 +1,7 @@
 # 内存基础库部件
 
 -   [简介](#section_introduction)
--   [部件架构图](#section_architecture)
+-   [部件架构](#section_architecture)
 -   [目录](#section_catalogue)
 -   [内存基础库](#section_libraries)
     -   [libdmabufheap系统库](#section_libdmabufheap)
@@ -16,11 +16,19 @@
 
 内存基础库部件位于公共基础库子系统中，为上层业务提供对应的操作内存的系统库，保证上层业务的稳定性。
 
-## 部件架构图<a name="section_architecture"></a>
+## 部件架构<a name="section_architecture"></a>
 
 **图1** 内存基础库部件架构图
 
 ![](figures/zh-cn_image_fwk.png)
+
+| 内存基础库 | 使用者                  |
+| -------------- | -------------------------- |
+| libdmabufheap  | 多媒体相关服务      |
+| libmeminfo     | 内存管理服务         |
+| libmemleak     | 内存管理服务         |
+| libpurgeable   | 图形图像相关服务（规划中） |
+| libspeculative | 系统服务（规划中） |
 
 ## 目录<a name="section_catalogue"></a>
 
@@ -42,12 +50,12 @@
 
 ### libdmabufheap系统库<a name="section_libdmabufheap"></a>
 
-为业务提供分配共享内存的接口，通过在硬件设备和用户空间之间分配和共享内存，实现
+为多媒体相关服务提供分配共享内存的接口，通过在硬件设备和用户空间之间分配和共享内存，实现
 设备、进程间零拷贝内存，提升执行效率。
 
 ### libmeminfo系统库（规划中）<a name="section_libmeminfo"></a>
 
-提供内存占用查询接口。主要提供给内存占用维测（hidumper）、低内存查杀服务（lmks）使用。
+提供内存占用查询接口，用于内存占用信息查询、低内存查杀等场景。
 
 ### libmemleak系统库（规划中）<a name="section_libmemleak"></a>
 
@@ -55,11 +63,11 @@
 
 ### libpurgeable系统库（规划中）<a name="section_libpurgeable"></a>
 
-提供可丢弃类型内存的管理接口。主要提供给多媒体业务图形图像编解码库使用。
+提供可丢弃类型内存的管理接口。
 
 ### libspeculative系统库（规划中）<a name="section_libspeculative"></a>
 
-提供投机类型内存管理接口。主要提供给系统服务使用，用于缓存预读。
+提供投机类型内存管理接口，用于缓存预读。
 
 ## 使用说明<a name="section_usage"></a>
 
