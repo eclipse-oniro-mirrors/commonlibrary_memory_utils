@@ -1,5 +1,5 @@
 {
-  "name": "@utils/memory",
+  "name": "@ohos/utils_memory",
   "version": "3.1.0",
   "description": "memory base libraries",
   "publishAs": "source",
