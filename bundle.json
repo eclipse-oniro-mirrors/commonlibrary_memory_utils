@@ -20,11 +20,13 @@
     },
     "build": {
       "sub_component": [
-          "//utils/memory/libdmabufheap:libdmabufheap"
+          "//utils/memory/libdmabufheap:libdmabufheap",
+          "//utils/memory/libpurgeablemem:libpurgeablemem"
       ],
       "inner_kits": [],
       "test": [
-          "//utils/memory/libdmabufheap/test:unittest"
+          "//utils/memory/libdmabufheap/test:unittest",
+          "//utils/memory/libpurgeablemem/test:libpurgeablemem_test"
       ]
     }
   }
