@@ -13,23 +13,24 @@
  * limitations under the License.
  */
 
-#include "gtest/gtest.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cstdlib>
 #include <fcntl.h>
-#include <errno.h>
+#include <cerrno>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
-#include <limits.h>
+#include <climits>
+#include "gtest/gtest.h"
 #include "dmabuf_alloc.h"
-
-#define BUFFER_SIZE 128
 
 using namespace testing;
 using namespace testing::ext;
+
+namespace {
+const int BUFFER_SIZE = 128;
 
 class DmabufAllocTest : public testing::Test {
 public:
@@ -120,7 +121,7 @@ HWTEST_F(DmabufAllocTest, ShareBufferBetweenProcess, Function|MediumTest|Level1)
         exit(EXIT_SUCCESS);
     }
     /* parent process */
-    waitpid(pid, NULL, 0);
+    waitpid(pid, nullptr, 0);
 
     ASSERT_EQ(0, DmabufHeapBufferSyncStart(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
@@ -258,4 +259,5 @@ HWTEST_F(DmabufAllocTest, ExchangeBufferSyncOrder, Function|MediumTest|Level1)
     ASSERT_EQ(0, DmabufHeapBufferFree(&buffer));
 
     ASSERT_EQ(0, DmabufHeapClose(heapFd));
+}
 }
