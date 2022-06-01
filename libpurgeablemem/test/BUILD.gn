@@ -1,0 +1,45 @@
+# Copyright (C) 2022 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("//build/ohos_var.gni")
+import("//build/test.gni")
+
+module_output_path = "libpurgeablemem/"
+
+purgeable_deps = [
+  "//base/hiviewdfx/hilog/interfaces/native/innerkits:libhilog",
+  "//utils/memory/libpurgeablemem:libpurgeablemem",
+]
+
+purgeable_external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
+
+purgeable_public_deps = [ "//third_party/googletest:gtest_main" ]
+
+ohos_unittest("purgeable_c_test") {
+  module_out_path = module_output_path
+  sources = [ "purgeable_c_test.cpp" ]
+  deps = purgeable_deps
+  if (is_standard_system) {
+    external_deps = purgeable_external_deps
+    public_deps = purgeable_public_deps
+  }
+
+  subsystem_name = "utils"
+  part_name = "utils_memory"
+}
+
+group("libpurgeablemem_test") {
+  testonly = true
+  deps = [ ":purgeable_c_test" ]
+}
