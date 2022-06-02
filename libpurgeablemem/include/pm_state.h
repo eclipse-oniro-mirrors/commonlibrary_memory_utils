@@ -61,7 +61,7 @@ static const char * const PMStateNames[PM_ERR_TYPES] = {
     "LockInitFail",
     "ReadLockSucc",
     "ReadLockFail",
-    "WriteLockFail"
+    "WriteLockFail",
     "ReadUnlockFail",
     "WriteUnlockFail",
     "DataPurged",
