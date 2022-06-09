@@ -18,11 +18,11 @@
 #include <stdlib.h> /* malloc */
 
 #include "hilog/log.h"
-#include "pm_ptr_util.h"
-#include "pm_builder.h"
+#include "../../common/include/pm_ptr_util.h"
+#include "purgeable_mem_builder_c.h"
 
 #undef LOG_TAG
-#define LOG_TAG "libpurgeablemem: builder"
+#define LOG_TAG "PurgeableMemC: Builder"
 
 /* purgeable mem builder */
 struct PurgMemBuilder {
@@ -84,11 +84,11 @@ bool PurgMemBuilderAppendFunc(struct PurgMemBuilder *builder, PurgMemBuilderFunc
 /* build @data content from @builder */
 bool PurgMemBuilderBuildAll(struct PurgMemBuilder *builder, void *data, size_t size)
 {
-    if (!builder->Build) {
+    if (!(builder->Build)) {
         HILOG_ERROR(LOG_CORE, "builder has no Build(), %{public}s", builder->name);
         return true;
     }
-    if (!builder->Build(data, size, builder->param)) {
+    if (!(builder->Build(data, size, builder->param))) {
         HILOG_ERROR(LOG_CORE, "build data failed, name %{public}s", builder->name ?: "NULL");
         return false;
     }

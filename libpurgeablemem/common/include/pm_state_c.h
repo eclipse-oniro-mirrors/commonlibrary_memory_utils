@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef LIB_PURGEABLE_MEM_PM_STATE_H
-#define LIB_PURGEABLE_MEM_PM_STATE_H
+#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H
+#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H
 
 #ifdef __cplusplus
 #if __cplusplus
@@ -77,4 +77,4 @@ static const char * const PMStateNames[PM_ERR_TYPES] = {
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
-#endif /* LIB_PURGEABLE_MEM_PM_STATE_H */
+#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H */

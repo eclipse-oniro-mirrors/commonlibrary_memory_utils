@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef LIB_PURGEABLE_MEM_PM_BUILDER_H
-#define LIB_PURGEABLE_MEM_PM_BUILDER_H
+#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_BUILDER_C_H
+#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_BUILDER_C_H
 
 #include <stdbool.h>
 
@@ -49,4 +49,4 @@ bool PurgMemBuilderBuildAll(struct PurgMemBuilder *builder, void *data, size_t s
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
-#endif /* LIB_PURGEABLE_MEM_PM_BUILDER_H */
+#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_BUILDER_C_H */

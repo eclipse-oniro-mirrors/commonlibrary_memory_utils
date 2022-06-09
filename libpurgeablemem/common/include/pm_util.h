@@ -13,13 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef LIB_PURGEABLE_MEM_UX_PAGE_TABLE_H
-#define LIB_PURGEABLE_MEM_UX_PAGE_TABLE_H
-
-#include <stdint.h> /* uint64_t */
-#include <stdbool.h> /* bool */
-#include <sys/types.h> /* size_t */
-#include "pm_state.h"
+#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_UTIL_H
+#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_UTIL_H
 
 #ifdef __cplusplus
 #if __cplusplus
@@ -35,31 +30,24 @@ extern "C" {
  */
 #define USE_UXPT false
 
-#if defined(USE_UXPT) && (USE_UXPT == true)
+#define MAP_PURGEABLE 0x40
 #define MAP_USEREXPTE 0x80
-#else
-#define MAP_USEREXPTE 0x0
-#endif
+
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1 << PAGE_SHIFT)
 
 /*
- * using uint64_t as uxpte_t to avoid avoid confusion on 32-bit and 64 bit systems.
- * Type uxpte_t may be modified to uint32_t in the future, so typedef is used.
+ * When UXPT is not used, In order not to affect the normal function
+ * of user programs, this lib will provide normal anon memory. So
+ * MAP_PURGEABLE is set to 0x0.
  */
-typedef uint64_t uxpte_t;
+#if (USE_UXPT == false)
+#undef MAP_PURGEABLE
+#define MAP_PURGEABLE 0x0
 
-/* user extend page table */
-struct UxPageTable;
-
-bool UxpteIsEnabled(void);
-size_t UxPageTableSize(void);
-
-PMState InitUxPageTable(struct UxPageTable *upt, void *addr, size_t len);
-PMState DeinitUxPageTable(struct UxPageTable *upt);
-
-void UxpteGet(struct UxPageTable *upt, void *addr, size_t len);
-void UxptePut(struct UxPageTable *upt, void *addr, size_t len);
-bool UxpteIsPresent(struct UxPageTable *upt, void *addr, size_t len);
-
+#undef MAP_USEREXPTE
+#define MAP_USEREXPTE 0x0
+#endif
 
 #ifdef __cplusplus
 #if __cplusplus
@@ -67,4 +55,4 @@ bool UxpteIsPresent(struct UxPageTable *upt, void *addr, size_t len);
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
-#endif /* LIB_PURGEABLE_MEM_UX_PAGE_TABLE_H */
+#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_UTIL_H */
