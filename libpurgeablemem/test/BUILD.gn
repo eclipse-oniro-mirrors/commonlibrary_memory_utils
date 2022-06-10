@@ -39,7 +39,23 @@ ohos_unittest("purgeable_c_test") {
   part_name = "utils_memory"
 }
 
+ohos_unittest("purgeable_cpp_test") {
+  module_out_path = module_output_path
+  sources = [ "purgeable_cpp_test.cpp" ]
+  deps = purgeable_deps
+  if (is_standard_system) {
+    external_deps = purgeable_external_deps
+    public_deps = purgeable_public_deps
+  }
+
+  subsystem_name = "utils"
+  part_name = "utils_memory"
+}
+
 group("libpurgeablemem_test") {
   testonly = true
-  deps = [ ":purgeable_c_test" ]
+  deps = [
+    ":purgeable_c_test",
+    ":purgeable_cpp_test",
+  ]
 }
