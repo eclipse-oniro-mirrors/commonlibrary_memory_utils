@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef LIB_PURGEABLE_MEM_PM_PTR_UTIL_H
-#define LIB_PURGEABLE_MEM_PM_PTR_UTIL_H
+#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_PTR_UTIL_H
+#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_PTR_UTIL_H
 
 #include "hilog/log.h"
 
@@ -33,4 +33,4 @@
         }                                              \
     } while (0)
 
-#endif /* LIB_PURGEABLE_MEM_PM_PTR_UTIL_H */
+#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_PTR_UTIL_H */

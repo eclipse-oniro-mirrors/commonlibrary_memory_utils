@@ -13,10 +13,11 @@
  * limitations under the License.
  */
 
-#ifndef LIB_PURGEABLE_MEM_PURGEABLE_MEM_H
-#define LIB_PURGEABLE_MEM_PURGEABLE_MEM_H
+#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
+#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
 
 #include <stdbool.h>
+#include <sys/types.h> /* size_t */
 
 #ifdef __cplusplus
 #if __cplusplus
@@ -125,4 +126,4 @@ bool PurgMemAppendModify(struct PurgMem *purgObj, PurgMemModifyFunc func, void *
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
-#endif /* LIB_PURGEABLE_MEM_PURGEABLE_MEM_H */
+#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H */

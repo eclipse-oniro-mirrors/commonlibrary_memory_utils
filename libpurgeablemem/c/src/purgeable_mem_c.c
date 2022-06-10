@@ -20,38 +20,24 @@
 #include <stdio.h> /* FILE */
 #include <stdatomic.h>
 
-#include "pm_builder.h"
-#include "pm_ptr_util.h"
-#include "pm_state.h"
-#include "ux_page_table.h"
-#include "purgeable_mem.h"
-
-#define MAP_PURGEABLE 0x40
-
-/*
- * When UXPT is not used, In order not to affect the normal function
- * of user programs, this lib will provide normal anon memory. So
- * MAP_PURGEABLE is set to 0x0.
- */
-#if (USE_UXPT == false)
-#undef MAP_PURGEABLE
-#define MAP_PURGEABLE 0x0
-#endif
+#include "../../common/include/pm_ptr_util.h"
+#include "../../common/include/pm_util.h"
+#include "../../common/include/pm_state_c.h"
+#include "../../common/include/ux_page_table_c.h"
+#include "purgeable_mem_builder_c.h"
+#include "purgeable_mem_c.h"
 
 #undef LOG_TAG
-#define LOG_TAG "libpurgeablemem"
+#define LOG_TAG "PurgeableMemC"
 
 struct PurgMem {
     void *dataPtr;
     size_t dataSizeInput;
     struct PurgMemBuilder *builder;
-    struct UxPageTable *uxPageTable;
+    UxPageTableStruct *uxPageTable;
     pthread_rwlock_t rwlock;
     unsigned int buildDataCount;
 };
-
-static const size_t PAGE_SHIFT = 12;
-static const size_t PAGE_SIZE = 1 << PAGE_SHIFT;
 
 static inline void LogPurgMemInfo_(struct PurgMem *obj)
 {
@@ -89,12 +75,12 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         goto free_pug_obj;
     }
 
-    pugObj->uxPageTable = (struct UxPageTable *)malloc(UxPageTableSize());
+    pugObj->uxPageTable = (UxPageTableStruct *)malloc(UxPageTableSize());
     if (!(pugObj->uxPageTable)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: malloc struct UxPageTable fail", __func__);
+        HILOG_ERROR(LOG_CORE, "%{public}s: malloc UxPageTableStruct fail", __func__);
         goto unmap_data;
     }
-    PMState err = InitUxPageTable(pugObj->uxPageTable, pugObj->dataPtr, size); /* dataPtr is aligned */
+    PMState err = InitUxPageTable(pugObj->uxPageTable, (uint64_t)(pugObj->dataPtr), size); /* dataPtr is aligned */
     if (err != PM_OK) {
         HILOG_ERROR(LOG_CORE, "%{public}s: InitUxPageTable fail, %{public}s", __func__, PMStateNames[err]);
         goto free_uxpt;
@@ -182,7 +168,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
             err = PM_UNMAP_PURG_FAIL;
         } else {
             /* double check munmap result: if uxpte is set to no_present */
-            if (UxpteIsEnabled() && !IsPurged_(purgObj)) {
+            if (USE_UXPT && !IsPurged_(purgObj)) {
                 HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
                 err = PM_UXPT_PRESENT_DATA_PURGED;
             }
@@ -216,15 +202,17 @@ static bool IsPurgMemPtrValid_(struct PurgMem *purgObj)
     IF_NULL_LOG_ACTION(purgObj, "obj is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->dataPtr, "dataPtr is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->uxPageTable, "pageTable is NULL", return false);
-    IF_NULL_LOG_ACTION(purgObj->builder, "builder is NULL", return false);
 
     return true;
 }
 
 static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
 {
-    bool succ = false;
-    succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
+    bool succ = true;
+    /* succ is true when purgObj has no builder */
+    if (purgObj->builder) {
+        succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
+    }
     if (succ) {
         purgObj->buildDataCount++;
     }
@@ -290,7 +278,7 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
     LogPurgMemInfo_(purgObj);
     bool ret = false;
     PMState err = PM_OK;
-    UxpteGet(purgObj->uxPageTable, purgObj->dataPtr, purgObj->dataSizeInput);
+    UxpteGet(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     while (true) {
         err = TryBeginRead_(purgObj);
         if (err == PM_DATA_NO_PURGED) {
@@ -309,7 +297,7 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
 
     if (!ret) {
         HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, UxptePut.", __func__, PMStateNames[err]);
-        UxptePut(purgObj->uxPageTable, purgObj->dataPtr, purgObj->dataSizeInput);
+        UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     }
     return ret;
 }
@@ -326,7 +314,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     bool rebuildRet = false;
     PMState err = PM_OK;
 
-    UxpteGet(purgObj->uxPageTable, purgObj->dataPtr, purgObj->dataSizeInput);
+    UxpteGet(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 
     rwlockRet = pthread_rwlock_wrlock(&(purgObj->rwlock));
     if (rwlockRet) {
@@ -354,7 +342,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
 
 uxpte_put:
     HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, PMStateNames[err]);
-    UxptePut(purgObj->uxPageTable, purgObj->dataPtr, purgObj->dataSizeInput);
+    UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     return false;
 succ:
     return true;
@@ -371,7 +359,7 @@ static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
     if (rwlockRet) {
         HILOG_ERROR(LOG_CORE, "%{public}s: unlock fail. %{public}d", __func__, rwlockRet);
     }
-    UxptePut(purgObj->uxPageTable, purgObj->dataPtr, purgObj->dataSizeInput);
+    UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 }
 
 void PurgMemEndRead(struct PurgMem *purgObj)
@@ -405,7 +393,12 @@ size_t PurgMemGetContentSize(struct PurgMem *purgObj)
 bool PurgMemAppendModify(struct PurgMem *purgObj, PurgMemModifyFunc func, void *funcPara)
 {
     IF_NULL_LOG_ACTION(func, "input func is NULL", return true);
-
+    IF_NULL_LOG_ACTION(purgObj, "input purgObj is NULL", return false);
+    /* apply modify */
+    bool succ = func(purgObj->dataPtr, purgObj->dataSizeInput, funcPara);
+    if (!succ) {
+        return false;
+    }
     struct PurgMemBuilder *builder = PurgMemBuilderCreate(func, funcPara, NULL);
     IF_NULL_LOG_ACTION(builder, "PurgMemBuilderCreate fail", return false);
 
@@ -423,5 +416,5 @@ static bool IsPurged_(struct PurgMem *purgObj)
         HILOG_INFO(LOG_CORE, "%{public}s, has never built, return true", __func__);
         return true;
     }
-    return !UxpteIsPresent(purgObj->uxPageTable, purgObj->dataPtr, purgObj->dataSizeInput);
+    return USE_UXPT && !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 }

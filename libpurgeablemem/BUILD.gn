@@ -14,14 +14,18 @@
 import("//build/ohos.gni")
 
 config("libpurgeable_config") {
-  include_dirs = [ "include" ]
+  include_dirs = [
+    "c/include",
+    "common/include",
+  ]
+  cflags_cc = [ "-fexceptions" ]
 }
 
 ohos_shared_library("libpurgeablemem") {
   sources = [
-    "src/pm_builder.c",
-    "src/purgeable_mem.c",
-    "src/ux_page_table.c",
+    "c/src/purgeable_mem_builder_c.c",
+    "c/src/purgeable_mem_c.c",
+    "common/src/ux_page_table_c.c",
   ]
   include_dirs = [ "include" ]
   deps = [ "//utils/native/base:utils" ]

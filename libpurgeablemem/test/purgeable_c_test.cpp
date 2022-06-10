@@ -17,7 +17,7 @@
 #include <thread>
 
 #include "gtest/gtest.h"
-#include "purgeable_mem.h"
+#include "purgeable_mem_c.h"
 
 namespace {
 using namespace testing;
@@ -287,9 +287,8 @@ void ModifyPurgMemByFunc(struct PurgMem *pdata, PurgMemModifyFunc Modfunc, void 
     }
     std::this_thread::sleep_for(std::chrono::seconds(MODIFY_INTERVAL_SECONDS));
     std::cout << __func__ << " before mod data=[" << (char *)PurgMemGetContent(pdata) << "]" << std::endl;
-    Modfunc(PurgMemGetContent(pdata), PurgMemGetContentSize(pdata), param);
-    std::cout<< __func__ << " after mod data=[" << (char *)PurgMemGetContent(pdata) << "]" << std::endl;
     PurgMemAppendModify(pdata, Modfunc, param);
+    std::cout<< __func__ << " after mod data=[" << (char *)PurgMemGetContent(pdata) << "]" << std::endl;
 
     std::cout << __func__ << " data=[" << (char *)PurgMemGetContent(pdata) << "]" << std::endl;
     PurgMemEndWrite(pdata);

@@ -18,18 +18,25 @@
 #include <sched.h> /* sched_yield() */
 
 #include "hilog/log.h"
-#include "ux_page_table.h"
+#include "pm_util.h"
+#include "ux_page_table_c.h"
 
 #undef LOG_TAG
-#define LOG_TAG "libpurgeablemem: uxpt"
+#define LOG_TAG "PurgeableMemC: UPT"
 
 #if (USE_UXPT == true)  /* (USE_UXPT == true) means using uxpt */
 
-struct UxPageTable {
+/*
+ * using uint64_t as uxpte_t to avoid avoid confusion on 32-bit and 64 bit systems.
+ * Type uxpte_t may be modified to uint32_t in the future, so typedef is used.
+ */
+typedef uint64_t uxpte_t;
+
+typedef struct UserExtendPageTable {
     uint64_t dataAddr;
     size_t dataSize;
     uxpte_t *uxpte;
-};
+} UxPageTableStruct;
 
 /*
  * -------------------------------------------------------------------------
@@ -39,8 +46,6 @@ struct UxPageTable {
  * --------------------------------------------------------------------------
  * |                   |  UXPTE_PER_PAGE_SHIFT  |        PAGE_SHIFT         |
  */
-static const size_t PAGE_SHIFT = 12;
-static const size_t PAGE_SIZE = 1 << PAGE_SHIFT;
 static const size_t UXPTE_SIZE_SHIFT = 3;
 static const size_t UXPTE_PER_PAGE_SHIFT = PAGE_SHIFT - UXPTE_SIZE_SHIFT;
 static const size_t UXPTE_PER_PAGE = 1 << UXPTE_PER_PAGE_SHIFT;
@@ -102,16 +107,17 @@ static inline uint64_t RoundDown_(uint64_t val, size_t align)
 enum UxpteOp {
     UPT_GET = 0,
     UPT_PUT = 1,
-    UPT_IS_PRESENT = 2,
+    UPT_CLEAR = 2,
+    UPT_IS_PRESENT = 3,
 };
 
 static void UxpteAdd_(uxpte_t *pte, size_t incNum);
 static void UxpteSub_(uxpte_t *pte, size_t decNum);
 
-static void GetUxpteAt_(struct UxPageTable *upt, uint64_t addr);
-static void PutUxpteAt_(struct UxPageTable *upt, uint64_t addr);
-static bool IsPresentAt_(struct UxPageTable *upt, uint64_t addr);
-static PMState UxpteOps_(struct UxPageTable *upt, uint64_t addr, size_t len, enum UxpteOp op);
+static void GetUxpteAt_(UxPageTableStruct *upt, uint64_t addr);
+static void PutUxpteAt_(UxPageTableStruct *upt, uint64_t addr);
+static bool IsPresentAt_(UxPageTableStruct *upt, uint64_t addr);
+static PMState UxpteOps_(UxPageTableStruct *upt, uint64_t addr, size_t len, enum UxpteOp op);
 
 static uxpte_t *MapUxptePages_(uint64_t dataAddr, size_t dataSize);
 static int UnmapUxptePages_(uxpte_t *ptes, size_t size);
@@ -123,21 +129,22 @@ bool UxpteIsEnabled(void)
 
 size_t UxPageTableSize(void)
 {
-    return sizeof(struct UxPageTable);
+    return sizeof(UxPageTableStruct);
 }
 
-PMState InitUxPageTable(struct UxPageTable *upt, void *addr, size_t len)
+PMState InitUxPageTable(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
-    upt->dataAddr = (uint64_t) addr;
+    upt->dataAddr = addr;
     upt->dataSize = len;
     upt->uxpte = MapUxptePages_(upt->dataAddr, upt->dataSize);
     if (!(upt->uxpte)) {
         return PM_MMAP_UXPT_FAIL;
     }
+    UxpteClear(upt, addr, len);
     return PM_OK;
 }
 
-PMState DeinitUxPageTable(struct UxPageTable *upt)
+PMState DeinitUxPageTable(UxPageTableStruct *upt)
 {
     size_t size = GetUxPageSize_(upt->dataAddr, upt->dataSize);
     int unmapRet = 0;
@@ -154,42 +161,68 @@ PMState DeinitUxPageTable(struct UxPageTable *upt)
     return PM_OK;
 }
 
-void UxpteGet(struct UxPageTable *upt, void *addr, size_t len)
+void UxpteGet(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
-    UxpteOps_(upt, (uint64_t)addr, len, UPT_GET);
+    UxpteOps_(upt, addr, len, UPT_GET);
 }
 
-void UxptePut(struct UxPageTable *upt, void *addr, size_t len)
+void UxptePut(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
-    UxpteOps_(upt, (uint64_t)addr, len, UPT_PUT);
+    UxpteOps_(upt, addr, len, UPT_PUT);
 }
 
-bool UxpteIsPresent(struct UxPageTable *upt, void *addr, size_t len)
+void UxpteClear(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
-    PMState ret = UxpteOps_(upt, (uint64_t)addr, len, UPT_IS_PRESENT);
+    UxpteOps_(upt, addr, len, UPT_CLEAR);
+}
+
+bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len)
+{
+    PMState ret = UxpteOps_(upt, addr, len, UPT_IS_PRESENT);
     return ret == PM_OK;
+}
+
+static inline uxpte_t UxpteLoad_(uxpte_t *uxpte)
+{
+    __sync_synchronize();
+    return *uxpte;
+}
+
+static inline bool UxpteCAS_(uxpte_t *uxpte, uxpte_t old, uxpte_t newVal)
+{
+    return __sync_bool_compare_and_swap(uxpte, old, newVal);
 }
 
 static void UxpteAdd_(uxpte_t *pte, size_t incNum)
 {
-    uxpte_t old = 0, ret = 0;
-
-    while (true) {
-        old = *pte;
+    uxpte_t old;
+    do {
+        old = UxpteLoad_(pte);
         if (IsUxpteUnderReclaim_(old)) {
             sched_yield();
             continue;
         }
-
-        ret = __sync_val_compare_and_swap(pte, old, old + incNum);
-        if (ret == old)
-            break;
-    }
+    } while (!UxpteCAS_(pte, old, old + incNum));
 }
 
 static void UxpteSub_(uxpte_t *pte, size_t decNum)
 {
-    (void)__sync_fetch_and_sub(pte, decNum);
+    uxpte_t old;
+    do {
+        old = UxpteLoad_(pte);
+    } while (!UxpteCAS_(pte, old, old - decNum));
+}
+
+static void UxpteClear_(uxpte_t *pte)
+{
+    uxpte_t old = UxpteLoad_(pte);
+    if (!old) {
+        return; /* has been set to zero */
+    }
+    HILOG_ERROR(LOG_CORE, "%{public}s: upte(0x%{public}llx) != 0", __func__, (unsigned long long)old);
+    do {
+        old = UxpteLoad_(pte);
+    } while (!UxpteCAS_(pte, old, 0));
 }
 
 static inline size_t GetIndexInUxpte_(uint64_t startAddr, uint64_t currAddr)
@@ -197,7 +230,7 @@ static inline size_t GetIndexInUxpte_(uint64_t startAddr, uint64_t currAddr)
     return UxpteOffset_(startAddr) + (VirtPageNo_(currAddr) - VirtPageNo_(startAddr));
 }
 
-static void GetUxpteAt_(struct UxPageTable *upt, uint64_t addr)
+static void GetUxpteAt_(UxPageTableStruct *upt, uint64_t addr)
 {
     size_t index = GetIndexInUxpte_(upt->dataAddr, addr);
     UxpteAdd_(&(upt->uxpte[index]), UXPTE_REFCNT_ONE);
@@ -206,7 +239,7 @@ static void GetUxpteAt_(struct UxPageTable *upt, uint64_t addr)
         __func__, (unsigned long long)addr, (unsigned long long)(upt->uxpte[index]));
 }
 
-static void PutUxpteAt_(struct UxPageTable *upt, uint64_t addr)
+static void PutUxpteAt_(UxPageTableStruct *upt, uint64_t addr)
 {
     size_t index = GetIndexInUxpte_(upt->dataAddr, addr);
     UxpteSub_(&(upt->uxpte[index]), UXPTE_REFCNT_ONE);
@@ -215,7 +248,13 @@ static void PutUxpteAt_(struct UxPageTable *upt, uint64_t addr)
         __func__, (unsigned long long)addr, (unsigned long long)(upt->uxpte[index]));
 }
 
-static bool IsPresentAt_(struct UxPageTable *upt, uint64_t addr)
+static void ClearUxpteAt_(UxPageTableStruct *upt, uint64_t addr)
+{
+    size_t index = GetIndexInUxpte_(upt->dataAddr, addr);
+    UxpteClear_(&(upt->uxpte[index]));
+}
+
+static bool IsPresentAt_(UxPageTableStruct *upt, uint64_t addr)
 {
     size_t index = GetIndexInUxpte_(upt->dataAddr, addr);
 
@@ -225,7 +264,7 @@ static bool IsPresentAt_(struct UxPageTable *upt, uint64_t addr)
     return IsUxptePresent_(upt->uxpte[index]);
 }
 
-static PMState UxpteOps_(struct UxPageTable *upt, uint64_t addr, size_t len, enum UxpteOp op)
+static PMState UxpteOps_(UxPageTableStruct *upt, uint64_t addr, size_t len, enum UxpteOp op)
 {
     uint64_t start =  RoundDown_(addr, PAGE_SIZE);
     uint64_t end = RoundUp_(addr + len, PAGE_SIZE);
@@ -246,6 +285,10 @@ static PMState UxpteOps_(struct UxPageTable *upt, uint64_t addr, size_t len, enu
             }
             case UPT_PUT: {
                 PutUxpteAt_(upt, off);
+                break;
+            }
+            case UPT_CLEAR: {
+                ClearUxpteAt_(upt, off);
                 break;
             }
             case UPT_IS_PRESENT: {
@@ -285,6 +328,10 @@ static int UnmapUxptePages_(uxpte_t *ptes, size_t size)
 
 #else /* (USE_UXPT == false), it means does not using uxpt */
 
+typedef struct UserExtendPageTable {
+    /* i am empty */
+} UxPageTableStruct;
+
 bool UxpteIsEnabled(void)
 {
     return false;
@@ -295,21 +342,21 @@ size_t UxPageTableSize(void)
     return 0;
 }
 
-PMState InitUxPageTable(struct UxPageTable *upt, void *addr, size_t len)
+PMState InitUxPageTable(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
     return PM_OK;
 }
 
-PMState DeinitUxPageTable(struct UxPageTable *upt)
+PMState DeinitUxPageTable(UxPageTableStruct *upt)
 {
     return PM_OK;
 }
 
-void UxpteGet(struct UxPageTable *upt, void *addr, size_t len) {}
+void UxpteGet(UxPageTableStruct *upt, uint64_t addr, size_t len) {}
 
-void UxptePut(struct UxPageTable *upt, void *addr, size_t len) {}
+void UxptePut(UxPageTableStruct *upt, uint64_t addr, size_t len) {}
 
-bool UxpteIsPresent(struct UxPageTable *upt, void *addr, size_t len)
+bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
     return true;
 }
