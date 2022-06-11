@@ -46,5 +46,4 @@ bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len);
 }
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
-
 #endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H */

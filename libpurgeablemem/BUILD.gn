@@ -17,6 +17,7 @@ config("libpurgeable_config") {
   include_dirs = [
     "c/include",
     "common/include",
+    "cpp/include",
   ]
   cflags_cc = [ "-fexceptions" ]
 }
@@ -26,6 +27,9 @@ ohos_shared_library("libpurgeablemem") {
     "c/src/purgeable_mem_builder_c.c",
     "c/src/purgeable_mem_c.c",
     "common/src/ux_page_table_c.c",
+    "cpp/src/purgeable_mem.cpp",
+    "cpp/src/purgeable_mem_builder.cpp",
+    "cpp/src/ux_page_table.cpp",
   ]
   include_dirs = [ "include" ]
   deps = [ "//utils/native/base:utils" ]

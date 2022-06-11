@@ -58,10 +58,11 @@ bool PurgMemDestroy(struct PurgMem *purgObj);
  * PurgMemBeginRead: begin read a PurgMem obj.
  * Input:   @purgObj: a PurgMem obj.
  * Return:  return true if @purgObj's content is present.
- *          if content is purged, system will recover its data,
+ *          If content is purged(no present), system will recover its data,
  *          return false if content is purged and recover failed.
- * OS cannot reclaim the memory of @purgObj's content
- * when this function return true until PurgMemEndRead() is called.
+ *          While return true if content recover success.
+ * OS cannot reclaim the memory of @purgObj's content when this
+ * function return true, until PurgMemEndRead() is called.
  */
 bool PurgMemBeginRead(struct PurgMem *purgObj);
 
@@ -74,13 +75,14 @@ bool PurgMemBeginRead(struct PurgMem *purgObj);
 void PurgMemEndRead(struct PurgMem *purgObj);
 
 /*
- * PurgMemBeginWrite: begin read a PurgMem obj.
+ * PurgMemBeginWrite: begin write a PurgMem obj.
  * Input:   @purgObj: a PurgMem obj.
  * Return:  return true if @purgObj's content is present.
- *          if content is purged, system will recover its data,
+ *          if content is purged(no present), system will recover its data,
  *          return false if content is purged and recover failed.
- * OS cannot reclaim the memory of @purgObj's content
- * when this function return true until PurgMemEndWrite() is called.
+ *          While return true if content recover success.
+ * OS cannot reclaim the memory of @purgObj's content when this
+ * function return true, until PurgMemEndWrite() is called.
  */
 bool PurgMemBeginWrite(struct PurgMem *purgObj);
 
@@ -97,7 +99,7 @@ void PurgMemEndWrite(struct PurgMem *purgObj);
  * Input:   @purgObj: a PurgMem obj.
  * Return:  return start address of a PurgMem obj's content.
  *          Return NULL if @purgObj is NULL.
- * This function should be protect by PurgMemEndRead()/PurgMemEndRead()
+ * This function should be protect by PurgMemBeginRead()/PurgMemEndRead()
  * or PurgMemBeginWrite()/PurgMemEndWrite()
  */
 void *PurgMemGetContent(struct PurgMem *purgObj);
@@ -114,7 +116,7 @@ size_t PurgMemGetContentSize(struct PurgMem *purgObj);
  * PurgMemAppendModify: append a modify to a PurgMem obj.
  * Input:   @purgObj: a PurgMem obj.
  * Input:   @size: data size of a PurgMem obj's content.
- * Input:   @func: function pointer, it modifies content of @PurgMem.
+ * Input:   @func: function pointer, it will modify content of @PurgMem.
  * Input:   @funcPara: parameters used by @func.
  * Return:  append result, true is success, while false is fail.
  */
