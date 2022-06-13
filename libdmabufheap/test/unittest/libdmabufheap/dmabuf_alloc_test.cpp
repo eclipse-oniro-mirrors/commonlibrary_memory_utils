@@ -61,7 +61,7 @@ HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
     int heapFd = DmabufHeapOpen("system");
     ASSERT_GE(heapFd, 0);
 
-    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE };
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);
@@ -87,7 +87,7 @@ HWTEST_F(DmabufAllocTest, ShareBufferBetweenProcess, Function|MediumTest|Level1)
     int heapFd = DmabufHeapOpen("system");
     ASSERT_GE(heapFd, 0);
 
-    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE };
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);
@@ -168,7 +168,7 @@ HWTEST_F(DmabufAllocTest, BufferSyncWithWrongFd, Function|MediumTest|Level1)
     int heapFd = DmabufHeapOpen("system");
     ASSERT_GE(heapFd, 0);
 
-    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE };
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);
@@ -192,7 +192,7 @@ HWTEST_F(DmabufAllocTest, BufferSyncWithWrongSyncType, Function|MediumTest|Level
     int heapFd = DmabufHeapOpen("system");
     ASSERT_GE(heapFd, 0);
 
-    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE };
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);
@@ -214,7 +214,7 @@ HWTEST_F(DmabufAllocTest, SyncBufferTwice, Function|MediumTest|Level1)
     int heapFd = DmabufHeapOpen("system");
     ASSERT_GE(heapFd, 0);
 
-    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE };
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);
@@ -244,7 +244,7 @@ HWTEST_F(DmabufAllocTest, ExchangeBufferSyncOrder, Function|MediumTest|Level1)
     int heapFd = DmabufHeapOpen("system");
     ASSERT_GE(heapFd, 0);
 
-    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE };
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);

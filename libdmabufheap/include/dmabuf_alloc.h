@@ -37,6 +37,7 @@ typedef enum {
 typedef struct {
     unsigned int fd;
     size_t size;
+    unsigned int heapFlags;
 } DmabufHeapBuffer;
 
 int DmabufHeapOpen(const char *heapName);
