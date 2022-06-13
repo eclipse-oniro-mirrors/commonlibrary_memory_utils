@@ -33,7 +33,7 @@ UxPageTable::UxPageTable(uint64_t addr, size_t len)
     }
     PMState err = InitUxPageTable(uxpt_, addr, len); /* dataPtr is aligned */
     if (err != PM_OK) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: InitUxPageTable fail, %{public}s", __func__, PMStateNames[err]);
+        HILOG_ERROR(LOG_CORE, "%{public}s: InitUxPageTable fail, %{public}s", __func__, GetPMStateName(err));
         free(uxpt_);
         uxpt_ = nullptr;
     }
@@ -45,7 +45,7 @@ UxPageTable::~UxPageTable()
     if (uxpt_) {
         PMState err = DeinitUxPageTable(uxpt_);
         if (err != PM_OK) {
-            HILOG_ERROR(LOG_CORE, "%{public}s: deinit upt fail, %{public}s", __func__, PMStateNames[err]);
+            HILOG_ERROR(LOG_CORE, "%{public}s: deinit upt fail, %{public}s", __func__, GetPMStateName(err));
         } else {
             free(uxpt_);
             uxpt_ = nullptr;

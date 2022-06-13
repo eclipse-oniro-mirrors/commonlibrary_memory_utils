@@ -44,7 +44,6 @@ extern "C" {
 #if (USE_UXPT == false)
 #undef MAP_PURGEABLE
 #define MAP_PURGEABLE 0x0
-
 #undef MAP_USEREXPTE
 #define MAP_USEREXPTE 0x0
 #endif
