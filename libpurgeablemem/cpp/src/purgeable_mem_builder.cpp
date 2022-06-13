@@ -34,9 +34,9 @@ void PurgeableMemBuilder::AppendBuilder(std::unique_ptr<PurgeableMemBuilder> bui
 {
     IF_NULL_LOG_ACTION(builder, "input builder is nullptr", return);
     if (nextBuilder_) {
-        nextBuilder_->AppendBuilder(move(builder));
+        nextBuilder_->AppendBuilder(std::move(builder));
     } else {
-        nextBuilder_ = move(builder);
+        nextBuilder_ = std::move(builder);
     }
 }
 

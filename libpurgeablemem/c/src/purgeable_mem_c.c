@@ -82,7 +82,7 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
     }
     PMState err = InitUxPageTable(pugObj->uxPageTable, (uint64_t)(pugObj->dataPtr), size); /* dataPtr is aligned */
     if (err != PM_OK) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: InitUxPageTable fail, %{public}s", __func__, PMStateNames[err]);
+        HILOG_ERROR(LOG_CORE, "%{public}s: InitUxPageTable fail, %{public}s", __func__, GetPMStateName(err));
         goto free_uxpt;
     }
     int lockInitRet = pthread_rwlock_init(&(pugObj->rwlock), NULL);
@@ -179,7 +179,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     if (purgObj->uxPageTable) {
         PMState deinitRet = DeinitUxPageTable(purgObj->uxPageTable);
         if (deinitRet != PM_OK) {
-            HILOG_ERROR(LOG_CORE, "%{public}s: deinit upt fail, %{public}s", __func__, PMStateNames[deinitRet]);
+            HILOG_ERROR(LOG_CORE, "%{public}s: deinit upt fail, %{public}s", __func__, GetPMStateName(deinitRet));
             err = deinitRet;
         } else {
             free(purgObj->uxPageTable);
@@ -193,7 +193,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
         HILOG_ERROR(LOG_CORE, "%{public}s: succ", __func__);
         return true;
     }
-    HILOG_ERROR(LOG_CORE, "%{public}s: fail, %{public}s", __func__, PMStateNames[err]);
+    HILOG_ERROR(LOG_CORE, "%{public}s: fail, %{public}s", __func__, GetPMStateName(err));
     return false;
 }
 
@@ -296,7 +296,7 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
     }
 
     if (!ret) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, UxptePut.", __func__, PMStateNames[err]);
+        HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, UxptePut.", __func__, GetPMStateName(err));
         UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     }
     return ret;
@@ -341,7 +341,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     }
 
 uxpte_put:
-    HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, PMStateNames[err]);
+    HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, GetPMStateName(err));
     UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     return false;
 succ:

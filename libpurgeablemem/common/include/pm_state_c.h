@@ -22,6 +22,10 @@ extern "C" {
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
+/*
+ * PMState: Inner state.
+ * It may be used in C or CPP code, so using "typedef enum" for common cases.
+ */
 typedef enum {
     PM_OK = 0,
     PM_BUILDER_NULL,
@@ -47,29 +51,12 @@ typedef enum {
     PM_ERR_TYPES,
 } PMState; /* purgeable mem errno */
 
-static const char * const PMStateNames[PM_ERR_TYPES] = {
-    "OK",
-    "BuilderPtrNULL",
-    "MmapPurgMemFail",
-    "MmapUxptFail",
-    "UnmapPurgMemSucc",
-    "UnmapPurgMemFail",
-    "UnmapUxptFail",
-    "UxpteOutOfRange",
-    "UxptePresentDataPurged",
-    "UxpteNoPresent",
-    "LockInitFail",
-    "ReadLockSucc",
-    "ReadLockFail",
-    "WriteLockFail",
-    "ReadUnlockFail",
-    "WriteUnlockFail",
-    "DataPurged",
-    "DataNoPurged",
-    "BuilderBuildAllSucc",
-    "BuilderBuildAllFail",
-    "BuilderDestoryFailed",
-};
+/*
+ * PMStateName: Inner func, get name of PMState @state.
+ * Input:   @state: PMState.
+ * Return:  the name of PMState @state.
+ */
+const char *GetPMStateName(PMState state);
 
 #ifdef __cplusplus
 #if __cplusplus

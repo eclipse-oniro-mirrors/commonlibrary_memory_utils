@@ -53,7 +53,7 @@ PurgeableMem::PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder>
     buildDataCount_ = 0;
 
     if (builder) {
-        builder_ = move(builder);
+        builder_ = std::move(builder);
     }
     MAKE_UNIQUE(pageTable_, UxPageTable, "constructor uxpt make_unique fail", return, (uint64_t)dataPtr_, size);
     HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString_().c_str());
@@ -120,7 +120,7 @@ bool PurgeableMem::BeginRead()
     }
 
     if (!ret) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, PMStateNames[err]);
+        HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, GetPMStateName(err));
         pageTable_->PutUxpte((uint64_t)dataPtr_, dataSizeInput_);
     }
     return ret;
@@ -167,7 +167,7 @@ bool PurgeableMem::BeginWrite()
     }
 
     rwlock_.unlock();
-    HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, PMStateNames[err]);
+    HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, GetPMStateName(err));
     pageTable_->PutUxpte((uint64_t)dataPtr_, dataSizeInput_);
     return false;
 }
@@ -200,9 +200,9 @@ bool PurgeableMem::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilder> m
     }
     /* log modify */
     if (builder_) {
-        builder_->AppendBuilder(move(modifier));
+        builder_->AppendBuilder(std::move(modifier));
     } else {
-        builder_ = move(modifier);
+        builder_ = std::move(modifier);
     }
     return true;
 }

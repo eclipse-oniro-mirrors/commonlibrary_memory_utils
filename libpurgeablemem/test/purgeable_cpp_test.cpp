@@ -122,18 +122,18 @@ HWTEST_F(PurgeableCppTest, MultiObjCreateTest, TestSize.Level1)
     const char alphabetFinal[] = "BBCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     std::unique_ptr<PurgeableMemBuilder> builder2 = std::make_unique<TestDataBuilder>('A', 'Z');
-    PurgeableMem pobj1(27, move(builder));
+    PurgeableMem pobj1(27, std::move(builder));
     std::unique_ptr<PurgeableMemBuilder> mod = std::make_unique<TestDataModifier>('A', 'B');
     std::unique_ptr<PurgeableMemBuilder> mod2 = std::make_unique<TestDataModifier>('A', 'B');
 
     LoopPrintAlphabet(&pobj1, 1);
-    ModifyPurgMemByBuilder(&pobj1, move(mod));
+    ModifyPurgMemByBuilder(&pobj1, std::move(mod));
     LoopPrintAlphabet(&pobj1, 1);
     LoopReclaimPurgeable(1);
 
-    PurgeableMem pobj2(27, move(builder2));
+    PurgeableMem pobj2(27, std::move(builder2));
     LoopPrintAlphabet(&pobj2, 1);
-    ModifyPurgMemByBuilder(&pobj2, move(mod2));
+    ModifyPurgMemByBuilder(&pobj2, std::move(mod2));
     LoopPrintAlphabet(&pobj2, 1);
 
     if (pobj1.BeginRead()) {
@@ -156,7 +156,7 @@ HWTEST_F(PurgeableCppTest, ReadTest, TestSize.Level1)
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     PurgeableMem *pobj = new PurgeableMem(27);
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
-    ModifyPurgMemByBuilder(pobj, move(builder));
+    ModifyPurgMemByBuilder(pobj, std::move(builder));
     std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
     pthread_t reclaimPid = reclaimThread.native_handle();
     reclaimThread.detach();
@@ -181,15 +181,15 @@ HWTEST_F(PurgeableCppTest, WriteTest, TestSize.Level1)
 {
     const char alphabet[] = "CCCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
-    PurgeableMem *pobj = new PurgeableMem(27, move(builder));
+    PurgeableMem *pobj = new PurgeableMem(27, std::move(builder));
     std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
     pthread_t reclaimPid = reclaimThread.native_handle();
     reclaimThread.detach();
 
     std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
     std::unique_ptr<PurgeableMemBuilder> modB2C = std::make_unique<TestDataModifier>('B', 'C');
-    ModifyPurgMemByBuilder(pobj, move(modA2B));
-    ModifyPurgMemByBuilder(pobj, move(modB2C));
+    ModifyPurgMemByBuilder(pobj, std::move(modA2B));
+    ModifyPurgMemByBuilder(pobj, std::move(modB2C));
 
     if (pobj->BeginRead()) {
         ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
@@ -208,7 +208,7 @@ HWTEST_F(PurgeableCppTest, ReadWriteTest, TestSize.Level1)
 {
     const char alphabet[] = "DDDDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
-    PurgeableMem *pobj = new PurgeableMem(27, move(builder));
+    PurgeableMem *pobj = new PurgeableMem(27, std::move(builder));
     /* loop reclaim thread */
     std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
     pthread_t reclaimPid = reclaimThread.native_handle();
@@ -221,9 +221,9 @@ HWTEST_F(PurgeableCppTest, ReadWriteTest, TestSize.Level1)
     std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
     std::unique_ptr<PurgeableMemBuilder> modB2C = std::make_unique<TestDataModifier>('B', 'C');
     std::unique_ptr<PurgeableMemBuilder> modC2D = std::make_unique<TestDataModifier>('C', 'D');
-    ModifyPurgMemByBuilder(pobj, move(modA2B));
-    ModifyPurgMemByBuilder(pobj, move(modB2C));
-    ModifyPurgMemByBuilder(pobj, move(modC2D));
+    ModifyPurgMemByBuilder(pobj, std::move(modA2B));
+    ModifyPurgMemByBuilder(pobj, std::move(modB2C));
+    ModifyPurgMemByBuilder(pobj, std::move(modC2D));
 
     if (pobj->BeginRead()) {
         ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
@@ -294,7 +294,7 @@ void ModifyPurgMemByBuilder(PurgeableMem *pdata, std::unique_ptr<PurgeableMemBui
     }
     std::this_thread::sleep_for(std::chrono::seconds(MODIFY_INTERVAL_SECONDS));
     std::cout << __func__ << " before mod data=[" << (char *)(pdata->GetContent()) << "]" << std::endl;
-    pdata->ModifyContentByBuilder(move(mod));
+    pdata->ModifyContentByBuilder(std::move(mod));
     std::cout<< __func__ << " after mod data=[" << (char *)(pdata->GetContent()) << "]" << std::endl;
 
     std::cout << __func__ << " data=[" << (char *)(pdata->GetContent()) << "]" << std::endl;
