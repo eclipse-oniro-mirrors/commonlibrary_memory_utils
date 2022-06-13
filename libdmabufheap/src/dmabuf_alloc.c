@@ -36,7 +36,7 @@
 static bool IsHeapNameValid(const char *heapName)
 {
     if ((heapName == NULL) || (strlen(heapName) == 0) ||
-        (strlen(heapName) >= HEAP_NAME_MAX_LEN)) {
+        (strlen(heapName) > HEAP_NAME_MAX_LEN)) {
         return false;
     }
 
@@ -87,6 +87,7 @@ int DmabufHeapBufferAlloc(unsigned int heapFd, DmabufHeapBuffer *buffer)
     struct dma_heap_allocation_data data = {
         .len = buffer->size,
         .fd_flags = O_RDWR | O_CLOEXEC,
+        .heap_flags = buffer->heapFlags,
     };
     int ret = ioctl(heapFd, DMA_HEAP_IOCTL_ALLOC, &data);
     if (ret < 0) {
