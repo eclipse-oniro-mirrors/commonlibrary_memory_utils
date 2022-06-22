@@ -38,6 +38,8 @@ typedef struct UserExtendPageTable {
     uxpte_t *uxpte;
 } UxPageTableStruct;
 
+static bool g_supportUxpt = false;
+
 /*
  * -------------------------------------------------------------------------
  * |         virtual page number                |                           |
@@ -111,6 +113,7 @@ enum UxpteOp {
     UPT_IS_PRESENT = 3,
 };
 
+static void __attribute__((constructor)) CheckUxpt_(void);
 static void UxpteAdd_(uxpte_t *pte, size_t incNum);
 static void UxpteSub_(uxpte_t *pte, size_t decNum);
 
@@ -122,9 +125,45 @@ static PMState UxpteOps_(UxPageTableStruct *upt, uint64_t addr, size_t len, enum
 static uxpte_t *MapUxptePages_(uint64_t dataAddr, size_t dataSize);
 static int UnmapUxptePages_(uxpte_t *ptes, size_t size);
 
+static void __attribute__((constructor)) CheckUxpt_(void)
+{
+    int prot = PROT_READ | PROT_WRITE;
+    int type = MAP_ANONYMOUS | MAP_PURGEABLE;
+    size_t dataSize = PAGE_SIZE;
+    /* try to mmap purgable page */
+    void *dataPtr = mmap(NULL, dataSize, prot, type, -1, 0);
+    if (dataPtr == MAP_FAILED) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: not support MAP_PURG", __func__);
+        g_supportUxpt = false;
+        return;
+    }
+    /* try to mmap uxpt page */
+    type = MAP_ANONYMOUS | MAP_USEREXPTE;
+    size_t uptSize = GetUxPageSize_((uint64_t)dataPtr, dataSize);
+    void *ptes = mmap(NULL, uptSize, prot, type, -1, UxptePageNo_((uint64_t)dataPtr) * PAGE_SIZE);
+    if (ptes != MAP_FAILED) {
+        g_supportUxpt = true;
+        /* free uxpt */
+        if (munmap(ptes, uptSize)) {
+            HILOG_ERROR(LOG_CORE, "%{public}s: unmap uxpt fail", __func__);
+        }
+    } else { /* MAP_FAILED */
+        g_supportUxpt = false;
+        HILOG_ERROR(LOG_CORE, "%{public}s: not support uxpt", __func__);
+    }
+    ptes = NULL;
+    /* free data */
+    if (munmap(dataPtr, dataSize)) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: unmap purg data fail", __func__);
+    }
+    dataPtr = NULL;
+    HILOG_INFO(LOG_CORE, "%{public}s: supportUxpt=%{public}s", __func__, (g_supportUxpt ? "1" : "0"));
+    return;
+}
+
 bool UxpteIsEnabled(void)
 {
-    return true;
+    return g_supportUxpt;
 }
 
 size_t UxPageTableSize(void)
@@ -134,6 +173,10 @@ size_t UxPageTableSize(void)
 
 PMState InitUxPageTable(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
+    if (!g_supportUxpt) {
+        HILOG_DEBUG(LOG_CORE, "%{public}s: not support uxpt", __func__);
+        return PM_OK;
+    }
     upt->dataAddr = addr;
     upt->dataSize = len;
     upt->uxpte = MapUxptePages_(upt->dataAddr, upt->dataSize);
@@ -146,6 +189,10 @@ PMState InitUxPageTable(UxPageTableStruct *upt, uint64_t addr, size_t len)
 
 PMState DeinitUxPageTable(UxPageTableStruct *upt)
 {
+    if (!g_supportUxpt) {
+        HILOG_DEBUG(LOG_CORE, "%{public}s: not support uxpt", __func__);
+        return PM_OK;
+    }
     size_t size = GetUxPageSize_(upt->dataAddr, upt->dataSize);
     int unmapRet = 0;
     if (upt->uxpte) {
@@ -163,21 +210,33 @@ PMState DeinitUxPageTable(UxPageTableStruct *upt)
 
 void UxpteGet(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
+    if (!g_supportUxpt) {
+        return;
+    }
     UxpteOps_(upt, addr, len, UPT_GET);
 }
 
 void UxptePut(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
+    if (!g_supportUxpt) {
+        return;
+    }
     UxpteOps_(upt, addr, len, UPT_PUT);
 }
 
 void UxpteClear(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
+    if (!g_supportUxpt) {
+        return;
+    }
     UxpteOps_(upt, addr, len, UPT_CLEAR);
 }
 
 bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len)
 {
+    if (!g_supportUxpt) {
+        return true;
+    }
     PMState ret = UxpteOps_(upt, addr, len, UPT_IS_PRESENT);
     return ret == PM_OK;
 }
@@ -310,7 +369,7 @@ static PMState UxpteOps_(UxPageTableStruct *upt, uint64_t addr, size_t len, enum
 static uxpte_t *MapUxptePages_(uint64_t dataAddr, size_t dataSize)
 {
     int prot = PROT_READ | PROT_WRITE;
-    int type = MAP_PRIVATE | MAP_ANONYMOUS | MAP_USEREXPTE;
+    int type = MAP_ANONYMOUS | MAP_USEREXPTE;
     size_t size = GetUxPageSize_(dataAddr, dataSize);
     uxpte_t *ptes = (uxpte_t*)mmap(NULL, size, prot, type, -1, UxptePageNo_(dataAddr) * PAGE_SIZE);
     if (ptes == MAP_FAILED) {

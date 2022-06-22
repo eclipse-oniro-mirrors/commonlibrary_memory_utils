@@ -15,6 +15,7 @@
 
 #include <sys/mman.h> /* mmap */
 
+#include "securec.h"
 #include "../../common/include/pm_util.h"
 #include "../../common/include/pm_state_c.h"
 #include "pm_smartptr_util.h"
@@ -49,7 +50,9 @@ PurgeableMem::PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder>
     IF_NULL_LOG_ACTION(builder, "%{public}s: input builder nullptr", return);
 
     size_t size = RoundUp_(dataSizeInput_, PAGE_SIZE);
-    dataPtr_ = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PURGEABLE | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    int type = MAP_ANONYMOUS;
+    type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    dataPtr_ = mmap(nullptr, size, PROT_READ | PROT_WRITE, type, -1, 0);
     if (dataPtr_ == MAP_FAILED) {
         HILOG_ERROR(LOG_CORE, "%{public}s: mmap fail", __func__);
         dataPtr_ = nullptr;
@@ -69,7 +72,7 @@ PurgeableMem::~PurgeableMem()
         if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE))) {
             HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
         } else {
-            if (USE_UXPT && !IsPurged_()) {
+            if (UxpteIsEnabled() && !IsPurged_()) {
                 HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
             }
             dataPtr_ = nullptr;
@@ -218,12 +221,17 @@ bool PurgeableMem::IsPurged_()
         HILOG_INFO(LOG_CORE, "%{public}s, has never built, return true", __func__);
         return true;
     }
-    return USE_UXPT && (!pageTable_->CheckPresent((uint64_t)dataPtr_, dataSizeInput_));
+    return !(pageTable_->CheckPresent((uint64_t)dataPtr_, dataSizeInput_));
 }
 
 bool PurgeableMem::BuildContent_()
 {
     bool succ = false;
+    /* clear content before rebuild */
+    if (memset_s(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE), 0, dataSizeInput_) != EOK) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, clear content fail", __func__);
+        return succ;
+    }
     /* builder_ and dataPtr_ is never nullptr since it is checked by BeginAccess() before */
     succ = builder_->BuildAll(dataPtr_, dataSizeInput_);
     if (succ) {

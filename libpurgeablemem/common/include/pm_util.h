@@ -28,10 +28,10 @@ extern "C" {
  * case 1: if there is no purgeable mem module in kernel.
  * case 2: if you want close libpurgeable, meanwhile doesn't affect user programs.
  */
-#define USE_UXPT false
+#define USE_UXPT true
 
-#define MAP_PURGEABLE 0x40
-#define MAP_USEREXPTE 0x80
+#define MAP_PURGEABLE 0x04
+#define MAP_USEREXPTE 0x08
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1 << PAGE_SHIFT)
