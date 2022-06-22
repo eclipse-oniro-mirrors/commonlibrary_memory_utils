@@ -20,6 +20,7 @@
 #include <stdio.h> /* FILE */
 #include <stdatomic.h>
 
+#include "securec.h"
 #include "../../common/include/pm_ptr_util.h"
 #include "../../common/include/pm_util.h"
 #include "../../common/include/pm_state_c.h"
@@ -68,10 +69,12 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         return NULL;
     }
     size_t size = RoundUp_(len, PAGE_SIZE);
-    pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-        MAP_PURGEABLE | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (!pugObj->dataPtr) {
+    int type = MAP_ANONYMOUS;
+    type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, type, -1, 0);
+    if (pugObj->dataPtr == MAP_FAILED) {
         HILOG_ERROR(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
+        pugObj->dataPtr = NULL;
         goto free_pug_obj;
     }
 
@@ -119,11 +122,11 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
         HILOG_ERROR(LOG_CORE, "%{public}s: input len 0", __func__);
         return NULL;
     }
-
+    /* a PurgMemObj must have builder */
+    IF_NULL_LOG_ACTION(func, "%{public}s: input func is NULL", return NULL);
     struct PurgMem *purgMemObj = PurgMemCreate_(len, NULL);
-    /* no build func or create fail */
-    if (!func || !purgMemObj) {
-        /* this PurgMemObj allow no builder temporaily */
+    /* create fail */
+    if (!purgMemObj) {
         return purgMemObj;
     }
 
@@ -168,7 +171,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
             err = PM_UNMAP_PURG_FAIL;
         } else {
             /* double check munmap result: if uxpte is set to no_present */
-            if (USE_UXPT && !IsPurged_(purgObj)) {
+            if (UxpteIsEnabled() && !IsPurged_(purgObj)) {
                 HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
                 err = PM_UXPT_PRESENT_DATA_PURGED;
             }
@@ -202,17 +205,21 @@ static bool IsPurgMemPtrValid_(struct PurgMem *purgObj)
     IF_NULL_LOG_ACTION(purgObj, "obj is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->dataPtr, "dataPtr is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->uxPageTable, "pageTable is NULL", return false);
+    IF_NULL_LOG_ACTION(purgObj->builder, "builder is NULL", return false);
 
     return true;
 }
 
 static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
 {
-    bool succ = true;
-    /* succ is true when purgObj has no builder */
-    if (purgObj->builder) {
-        succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
+    bool succ = false;
+    /* clear content before rebuild */
+    if (memset_s(purgObj->dataPtr, RoundUp_(purgObj->dataSizeInput, PAGE_SIZE), 0, purgObj->dataSizeInput) != EOK) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, clear content fail", __func__);
+        return succ;
     }
+    /* @purgObj->builder is not NULL since it is checked by IsPurgMemPtrValid_() before */
+    succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
     if (succ) {
         purgObj->buildDataCount++;
     }
@@ -416,5 +423,5 @@ static bool IsPurged_(struct PurgMem *purgObj)
         HILOG_INFO(LOG_CORE, "%{public}s, has never built, return true", __func__);
         return true;
     }
-    return USE_UXPT && !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
+    return !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 }

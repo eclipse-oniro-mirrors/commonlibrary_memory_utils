@@ -154,9 +154,9 @@ HWTEST_F(PurgeableCppTest, MultiObjCreateTest, TestSize.Level1)
 HWTEST_F(PurgeableCppTest, ReadTest, TestSize.Level1)
 {
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
-    PurgeableMem *pobj = new PurgeableMem(27);
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
-    ModifyPurgMemByBuilder(pobj, std::move(builder));
+    PurgeableMem *pobj = new PurgeableMem(27, std::move(builder));
+
     std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
     pthread_t reclaimPid = reclaimThread.native_handle();
     reclaimThread.detach();
