@@ -70,8 +70,9 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
     size_t size = RoundUp_(len, PAGE_SIZE);
     pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE,
         MAP_PURGEABLE | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (!pugObj->dataPtr) {
+    if (pugObj->dataPtr == MAP_FAILED) {
         HILOG_ERROR(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
+        pugObj->dataPtr = NULL;
         goto free_pug_obj;
     }
 
@@ -119,11 +120,11 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
         HILOG_ERROR(LOG_CORE, "%{public}s: input len 0", __func__);
         return NULL;
     }
-
+    /* a PurgMemObj must have builder */
+    IF_NULL_LOG_ACTION(func, "%{public}s: input func is NULL", return NULL);
     struct PurgMem *purgMemObj = PurgMemCreate_(len, NULL);
-    /* no build func or create fail */
-    if (!func || !purgMemObj) {
-        /* this PurgMemObj allow no builder temporaily */
+    /* create fail */
+    if (!purgMemObj) {
         return purgMemObj;
     }
 
@@ -202,17 +203,16 @@ static bool IsPurgMemPtrValid_(struct PurgMem *purgObj)
     IF_NULL_LOG_ACTION(purgObj, "obj is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->dataPtr, "dataPtr is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->uxPageTable, "pageTable is NULL", return false);
+    IF_NULL_LOG_ACTION(purgObj->builder, "builder is NULL", return false);
 
     return true;
 }
 
 static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
 {
-    bool succ = true;
-    /* succ is true when purgObj has no builder */
-    if (purgObj->builder) {
-        succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
-    }
+    bool succ = false;
+    /* @purgObj->builder is not NULL since it is checked by IsPurgMemPtrValid_() before */
+    succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
     if (succ) {
         purgObj->buildDataCount++;
     }

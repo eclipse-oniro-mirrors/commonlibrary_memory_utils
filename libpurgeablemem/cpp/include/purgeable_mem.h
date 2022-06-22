@@ -33,7 +33,7 @@ public:
      * Input:   @builder: using @builder to recover user data when this obj's content is purged.
      * @builder should be a unique_ptr to avolid memory manage chaos(memory leak).
      */
-    PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder> builder = nullptr);
+    PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder> builder);
 
     /*
      * Destructor of class PurgeableMem.
@@ -100,10 +100,10 @@ public:
     bool ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilder> modifier);
 
 private:
-    void *dataPtr_;
+    void *dataPtr_ = nullptr;
     size_t dataSizeInput_;
-    std::unique_ptr<PurgeableMemBuilder> builder_;
-    std::unique_ptr<UxPageTable> pageTable_;
+    std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
+    std::unique_ptr<UxPageTable> pageTable_ = nullptr;
     std::shared_mutex rwlock_;
     unsigned int buildDataCount_;
 

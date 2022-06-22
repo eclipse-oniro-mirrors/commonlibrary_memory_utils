@@ -37,24 +37,27 @@ static inline size_t RoundUp_(size_t val, size_t align)
 
 PurgeableMem::PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder> builder)
 {
+    dataPtr_ = nullptr;
+    builder_ = nullptr;
+    pageTable_ = nullptr;
+    buildDataCount_ = 0;
+
     if (dataSize == 0) {
         return;
     }
     dataSizeInput_ = dataSize;
+    IF_NULL_LOG_ACTION(builder, "%{public}s: input builder nullptr", return);
 
     size_t size = RoundUp_(dataSizeInput_, PAGE_SIZE);
     dataPtr_ = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PURGEABLE | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-    if (!dataPtr_) {
+    if (dataPtr_ == MAP_FAILED) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: mmap fail", __func__);
+        dataPtr_ = nullptr;
         return;
     }
 
-    pageTable_ = nullptr;
-    builder_ = nullptr;
-    buildDataCount_ = 0;
+    builder_ = std::move(builder);
 
-    if (builder) {
-        builder_ = std::move(builder);
-    }
     MAKE_UNIQUE(pageTable_, UxPageTable, "constructor uxpt make_unique fail", return, (uint64_t)dataPtr_, size);
     HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString_().c_str());
 }
@@ -84,6 +87,7 @@ bool PurgeableMem::BeginRead()
 
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginRead", return false);
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptr in BeginRead", return false);
+    IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginRead", return false);
 
     pageTable_->GetUxpte((uint64_t)dataPtr_, dataSizeInput_);
     PMState err = PM_OK;
@@ -140,6 +144,7 @@ bool PurgeableMem::BeginWrite()
 
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginWrite", return false);
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
+    IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginWrite", return false);
 
     pageTable_->GetUxpte((uint64_t)dataPtr_, dataSizeInput_);
     PMState err = PM_OK;
@@ -218,11 +223,9 @@ bool PurgeableMem::IsPurged_()
 
 bool PurgeableMem::BuildContent_()
 {
-    bool succ = true;
-    /* succ is true when purgObj has no builder */
-    if (builder_) {
-        succ = builder_->BuildAll(dataPtr_, dataSizeInput_);
-    }
+    bool succ = false;
+    /* builder_ and dataPtr_ is never nullptr since it is checked by BeginAccess() before */
+    succ = builder_->BuildAll(dataPtr_, dataSizeInput_);
     if (succ) {
         buildDataCount_++;
     }

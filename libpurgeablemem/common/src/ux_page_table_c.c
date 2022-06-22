@@ -313,7 +313,7 @@ static uxpte_t *MapUxptePages_(uint64_t dataAddr, size_t dataSize)
     int type = MAP_PRIVATE | MAP_ANONYMOUS | MAP_USEREXPTE;
     size_t size = GetUxPageSize_(dataAddr, dataSize);
     uxpte_t *ptes = (uxpte_t*)mmap(NULL, size, prot, type, -1, UxptePageNo_(dataAddr) * PAGE_SIZE);
-    if (ptes == (void *)-1) {
+    if (ptes == MAP_FAILED) {
         HILOG_ERROR(LOG_CORE, "%{public}s: fail, return NULL", __func__);
         ptes = NULL;
     }
