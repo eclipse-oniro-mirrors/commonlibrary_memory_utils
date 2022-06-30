@@ -13,8 +13,8 @@
     "adapted_system_type": [ "standard" ],
     "deps": {
       "components": [
-        "libhilog",
-        "utils_base"
+        "utils_base",
+        "hiviewdfx_hilog_native"
       ],
       "third_party": []
     },
