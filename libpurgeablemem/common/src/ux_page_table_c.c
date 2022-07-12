@@ -24,7 +24,7 @@
 #undef LOG_TAG
 #define LOG_TAG "PurgeableMemC: UPT"
 
-#if (USE_UXPT == true)  /* (USE_UXPT == true) means using uxpt */
+#if defined(USE_UXPT) && (USE_UXPT == true)  /* (USE_UXPT == true) means using uxpt */
 
 /*
  * using uint64_t as uxpte_t to avoid avoid confusion on 32-bit and 64 bit systems.
@@ -73,7 +73,7 @@ static inline uint64_t UxpteOffset_(uint64_t vaddr)
 static const size_t UXPTE_PRESENT_BIT = 1;
 static const size_t UXPTE_PRESENT_MASK = (1 << UXPTE_PRESENT_BIT) - 1;
 static const size_t UXPTE_REFCNT_ONE = 1 << UXPTE_PRESENT_BIT;
-static uxpte_t UXPTE_UNDER_RECLAIM = (uxpte_t)(-UXPTE_REFCNT_ONE);
+static const uxpte_t UXPTE_UNDER_RECLAIM = (uxpte_t)(-UXPTE_REFCNT_ONE);
 
 static inline bool IsUxptePresent_(uxpte_t pte)
 {
@@ -113,7 +113,7 @@ enum UxpteOp {
     UPT_IS_PRESENT = 3,
 };
 
-static void __attribute__((constructor)) CheckUxpt_(void);
+static void __attribute__((constructor)) CheckUxpt(void);
 static void UxpteAdd_(uxpte_t *pte, size_t incNum);
 static void UxpteSub_(uxpte_t *pte, size_t decNum);
 
@@ -125,7 +125,7 @@ static PMState UxpteOps_(UxPageTableStruct *upt, uint64_t addr, size_t len, enum
 static uxpte_t *MapUxptePages_(uint64_t dataAddr, size_t dataSize);
 static int UnmapUxptePages_(uxpte_t *ptes, size_t size);
 
-static void __attribute__((constructor)) CheckUxpt_(void)
+static void __attribute__((constructor)) CheckUxpt(void)
 {
     int prot = PROT_READ | PROT_WRITE;
     int type = MAP_ANONYMOUS | MAP_PURGEABLE;
@@ -144,7 +144,7 @@ static void __attribute__((constructor)) CheckUxpt_(void)
     if (ptes != MAP_FAILED) {
         g_supportUxpt = true;
         /* free uxpt */
-        if (munmap(ptes, uptSize)) {
+        if (munmap(ptes, uptSize) != 0) {
             HILOG_ERROR(LOG_CORE, "%{public}s: unmap uxpt fail", __func__);
         }
     } else { /* MAP_FAILED */
@@ -153,7 +153,7 @@ static void __attribute__((constructor)) CheckUxpt_(void)
     }
     ptes = NULL;
     /* free data */
-    if (munmap(dataPtr, dataSize)) {
+    if (munmap(dataPtr, dataSize) != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: unmap purg data fail", __func__);
     }
     dataPtr = NULL;
@@ -197,7 +197,7 @@ PMState DeinitUxPageTable(UxPageTableStruct *upt)
     int unmapRet = 0;
     if (upt->uxpte) {
         unmapRet = UnmapUxptePages_(upt->uxpte, size);
-        if (unmapRet) {
+        if (unmapRet != 0) {
             HILOG_ERROR(LOG_CORE, "%{public}s: unmap uxpt fail", __func__);
             return PM_UNMAP_UXPT_FAIL;
         }
@@ -275,7 +275,7 @@ static void UxpteSub_(uxpte_t *pte, size_t decNum)
 static void UxpteClear_(uxpte_t *pte)
 {
     uxpte_t old = UxpteLoad_(pte);
-    if (!old) {
+    if ((unsigned long long)old == 0) {
         return; /* has been set to zero */
     }
     HILOG_ERROR(LOG_CORE, "%{public}s: upte(0x%{public}llx) != 0", __func__, (unsigned long long)old);
@@ -385,7 +385,7 @@ static int UnmapUxptePages_(uxpte_t *ptes, size_t size)
     return munmap(ptes, size);
 }
 
-#else /* (USE_UXPT == false), it means does not using uxpt */
+#else /* !(defined(USE_UXPT) && (USE_UXPT == true)), it means does not using uxpt */
 
 typedef struct UserExtendPageTable {
     /* i am empty */

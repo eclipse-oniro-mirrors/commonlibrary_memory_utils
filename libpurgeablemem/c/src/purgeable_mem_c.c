@@ -89,7 +89,7 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         goto free_uxpt;
     }
     int lockInitRet = pthread_rwlock_init(&(pugObj->rwlock), NULL);
-    if (lockInitRet) {
+    if (lockInitRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: pthread_rwlock_init fail, %{public}d", __func__, lockInitRet);
         goto deinit_upt;
     }
@@ -118,7 +118,7 @@ free_pug_obj:
 
 struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara)
 {
-    if (!len) {
+    if (len == 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: input len 0", __func__);
         return NULL;
     }
@@ -151,7 +151,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     PMState err = PM_OK;
     /* destroy rwlock */
     int ret = pthread_rwlock_destroy(&(purgObj->rwlock));
-    if (ret) {
+    if (ret != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: pthread_rwlock_destroy fail, %{public}d", __func__, ret);
     }
     /* destroy builder */
@@ -166,7 +166,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     /* unmap purgeable mem region */
     if (purgObj->dataPtr) {
         size_t size = RoundUp_(purgObj->dataSizeInput, PAGE_SIZE);
-        if (munmap(purgObj->dataPtr, size)) {
+        if (munmap(purgObj->dataPtr, size) != 0) {
             HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
             err = PM_UNMAP_PURG_FAIL;
         } else {
@@ -229,7 +229,7 @@ static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
 static PMState TryBeginRead_(struct PurgMem *purgObj)
 {
     int rwlockRet = pthread_rwlock_rdlock(&(purgObj->rwlock));
-    if (rwlockRet) {
+    if (rwlockRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: rdlock fail. %{public}d", __func__, rwlockRet);
         return PM_LOCK_READ_FAIL;
     }
@@ -240,7 +240,7 @@ static PMState TryBeginRead_(struct PurgMem *purgObj)
     }
 
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
-    if (rwlockRet) {
+    if (rwlockRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: rd unlock fail. %{public}d", __func__, rwlockRet);
         return PM_UNLOCK_READ_FAIL;
     }
@@ -263,7 +263,7 @@ static PMState BeginReadBuildData_(struct PurgMem *purgObj)
     }
 
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
-    if (rwlockRet) {
+    if (rwlockRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
         return PM_UNLOCK_WRITE_FAIL;
     }
@@ -324,7 +324,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     UxpteGet(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 
     rwlockRet = pthread_rwlock_wrlock(&(purgObj->rwlock));
-    if (rwlockRet) {
+    if (rwlockRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
         err = PM_LOCK_WRITE_FAIL;
         goto uxpte_put;
@@ -343,7 +343,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     /* data is purged and rebuild failed. return false */
     err = PMB_BUILD_ALL_FAIL;
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
-    if (rwlockRet) {
+    if (rwlockRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
     }
 
@@ -363,7 +363,7 @@ static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
     }
     int rwlockRet = 0;
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
-    if (rwlockRet) {
+    if (rwlockRet != 0) {
         HILOG_ERROR(LOG_CORE, "%{public}s: unlock fail. %{public}d", __func__, rwlockRet);
     }
     UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);

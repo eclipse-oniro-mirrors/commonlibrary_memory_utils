@@ -69,7 +69,7 @@ PurgeableMem::~PurgeableMem()
 {
     HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
     if (dataPtr_) {
-        if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE))) {
+        if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE)) != 0) {
             HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
         } else {
             if (UxpteIsEnabled() && !IsPurged_()) {
