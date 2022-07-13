@@ -16,8 +16,8 @@
 #ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
 #define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
 
-#include <stdbool.h>
-#include <sys/types.h> /* size_t */
+#include <stdbool.h> /* bool */
+#include <stddef.h> /* size_t */
 
 #ifdef __cplusplus
 #if __cplusplus

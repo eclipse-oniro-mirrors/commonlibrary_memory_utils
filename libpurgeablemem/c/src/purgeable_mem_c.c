@@ -13,12 +13,10 @@
  * limitations under the License.
  */
 
-#include <sys/types.h> /* size_t */
 #include <stdlib.h> /* malloc */
 #include <sys/mman.h> /* mmap */
 #include <pthread.h>
 #include <stdio.h> /* FILE */
-#include <stdatomic.h>
 
 #include "securec.h"
 #include "../../common/include/pm_ptr_util.h"

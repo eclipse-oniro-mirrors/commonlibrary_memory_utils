@@ -18,7 +18,7 @@
 
 #include <stdint.h> /* uint64_t */
 #include <stdbool.h> /* bool */
-#include <sys/types.h> /* size_t */
+#include <stddef.h> /* size_t */
 #include "pm_state_c.h"
 
 #ifdef __cplusplus

@@ -17,7 +17,7 @@
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* malloc */
 
-#include "hilog/log.h"
+#include "hilog/log_c.h"
 #include "../../common/include/pm_ptr_util.h"
 #include "purgeable_mem_builder_c.h"
 

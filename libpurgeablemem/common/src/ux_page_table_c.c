@@ -17,7 +17,7 @@
 #include <sys/mman.h> /* mmap */
 #include <sched.h> /* sched_yield() */
 
-#include "hilog/log.h"
+#include "hilog/log_c.h"
 #include "pm_util.h"
 #include "ux_page_table_c.h"
 

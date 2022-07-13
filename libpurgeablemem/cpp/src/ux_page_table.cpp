@@ -15,7 +15,7 @@
 
 #include <cstdlib> /* malloc */
 
-#include "pm_smartptr_util.h"
+#include "hilog/log_c.h"
 #include "ux_page_table.h"
 
 namespace OHOS {

@@ -16,7 +16,7 @@
 #ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_PTR_UTIL_H
 #define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_PTR_UTIL_H
 
-#include "hilog/log.h"
+#include "hilog/log_c.h"
 
 #define IF_NULL_LOG_ACTION(pointer, log, action)       \
     do {                                               \

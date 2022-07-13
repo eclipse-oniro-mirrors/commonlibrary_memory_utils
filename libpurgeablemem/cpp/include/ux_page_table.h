@@ -16,9 +16,9 @@
 #ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_CPP_INCLUDE_UX_PAGE_TABLE_H
 #define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_CPP_INCLUDE_UX_PAGE_TABLE_H
 
-#include <string>
+#include <string> /* std::string */
 
-#include "../../common/include/ux_page_table_c.h"
+#include "../../common/include/ux_page_table_c.h" /* UxPageTableStruct */
 
 namespace OHOS {
 namespace PurgeableMem {
