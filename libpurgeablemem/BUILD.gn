@@ -33,8 +33,10 @@ ohos_shared_library("libpurgeablemem") {
     "cpp/src/ux_page_table.cpp",
   ]
   include_dirs = [ "include" ]
-  deps = [ "//utils/native/base:utils" ]
-  external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
+  external_deps = [
+    "c_utils:utils",
+    "hiviewdfx_hilog_native:libhilog",
+  ]
   public_configs = [ ":libpurgeable_config" ]
   subsystem_name = "utils"
   part_name = "utils_memory"
