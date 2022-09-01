@@ -71,7 +71,8 @@ bool UxPageTable::CheckPresent(uint64_t addr, size_t len)
 
 std::string UxPageTable::ToString() const
 {
-    return "uxptAddr: " + std::to_string((unsigned long long)uxpt_);
+    std::string uxptStr = uxpt_ ? std::to_string((unsigned long long)uxpt_) : "0";
+    return "uxptAddr: " + uxptStr;
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */
