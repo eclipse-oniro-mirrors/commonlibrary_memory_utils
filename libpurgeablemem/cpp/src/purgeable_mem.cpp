@@ -87,11 +87,9 @@ bool PurgeableMem::BeginRead()
     bool succ = false;
     bool ret = false;
     HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
-
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginRead", return false);
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptr in BeginRead", return false);
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginRead", return false);
-
     pageTable_->GetUxpte((uint64_t)dataPtr_, dataSizeInput_);
     PMState err = PM_OK;
     while (true) {
@@ -242,9 +240,10 @@ bool PurgeableMem::BuildContent_()
 
 inline std::string PurgeableMem::ToString_() const
 {
-    return "dataAddr:" + std::to_string((unsigned long long)dataPtr_) +
-           " dataSizeInput:" + std::to_string(dataSizeInput_) +
-           " " + pageTable_->ToString();
+    std::string dataptrStr = dataPtr_ ? std::to_string((unsigned long long)dataPtr_) : "0";
+    std::string pageTableStr = pageTable_ ? pageTable_->ToString() : "0";
+    return "dataAddr:" + dataptrStr + " dataSizeInput:" + std::to_string(dataSizeInput_) +
+        " " + pageTableStr;
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

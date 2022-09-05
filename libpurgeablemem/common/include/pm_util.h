@@ -34,6 +34,9 @@ extern "C" {
 #define MAP_USEREXPTE 0x08
 
 #define PAGE_SHIFT 12
+#ifdef PAGE_SIZE
+#undef PAGE_SIZE
+#endif
 #define PAGE_SIZE (1 << PAGE_SHIFT)
 
 /*

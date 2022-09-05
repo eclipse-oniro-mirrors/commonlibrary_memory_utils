@@ -43,12 +43,15 @@ public:
 
     bool Build(void *data, size_t size)
     {
+        if (size <= 0) {
+            return true;
+        }
         char *str = (char *)data;
         size_t len = 0;
         for (char ch = start; ch <= end && len < size; ch++) {
             str[len++] = ch;
         }
-        str[len] = 0;
+        str[size - 1] = 0;
         std::cout << "rebuild addr("<< (unsigned long long)str <<") " <<
             start << "~" << end << ", data=[" << str << "]" << std::endl;
         return true;
@@ -91,6 +94,36 @@ public:
 
 private:
     char from, to;
+};
+
+class TestBigDataBuilder : public PurgeableMemBuilder {
+public:
+    explicit TestBigDataBuilder(char target)
+    {
+        this->target = target;
+    }
+
+    bool Build(void *data, size_t size)
+    {
+        if (size <= 0) {
+            return true;
+        }
+        char *str = (char *)data;
+        size_t len = 0;
+        for (char ch = target; len < size;) {
+            str[len++] = ch;
+        }
+        str[size - 1] = 0;
+        return true;
+    }
+
+    ~TestBigDataBuilder()
+    {
+        std::cout << "~TestBigDataBuilder" << std::endl;
+    }
+
+private:
+    char target;
 };
 
 class PurgeableCppTest : public testing::Test {
@@ -237,6 +270,183 @@ HWTEST_F(PurgeableCppTest, ReadWriteTest, TestSize.Level1)
     std::this_thread::sleep_for(std::chrono::seconds(2 * PRINT_INTERVAL_SECONDS));
     delete pobj;
     pobj = nullptr;
+}
+
+HWTEST_F(PurgeableCppTest, MutiPageReadTest, TestSize.Level1)
+{
+    char alphabet[4098];
+    size_t len = 0;
+    for (char ch = 'A'; len < 4098;) {
+        alphabet[len++] = ch;
+    }
+    alphabet[4097] = 0;
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
+    PurgeableMem *pobj = new PurgeableMem(4098, std::move(builder));
+
+    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    pthread_t reclaimPid = reclaimThread.native_handle();
+    reclaimThread.detach();
+
+    unsigned int loopCount = 3;
+    /* loop read content */
+    for (unsigned int i = 0; i < loopCount; i++) {
+        if (!pobj->BeginRead()) {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+            continue;
+        }
+        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
+        pobj->EndRead();
+    }
+
+    pthread_cancel(reclaimPid); /* destroy reclaimThread */
+    delete pobj;
+    pobj = nullptr;
+}
+
+HWTEST_F(PurgeableCppTest, MutiPageWriteTest, TestSize.Level1)
+{
+    char alphabet[4098];
+    size_t len = 0;
+    for (char ch = 'C'; len < 4098;) {
+        alphabet[len++] = ch;
+    }
+    alphabet[4097] = 0;
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
+    PurgeableMem *pobj = new PurgeableMem(4098, std::move(builder));
+
+    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    pthread_t reclaimPid = reclaimThread.native_handle();
+    reclaimThread.detach();
+
+    std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
+    std::unique_ptr<PurgeableMemBuilder> modB2C = std::make_unique<TestDataModifier>('B', 'C');
+    ModifyPurgMemByBuilder(pobj, std::move(modA2B));
+    ModifyPurgMemByBuilder(pobj, std::move(modB2C));
+
+    if (pobj->BeginRead()) {
+        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
+        pobj->EndRead();
+    } else {
+        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    }
+
+    pthread_cancel(reclaimPid); /* destroy reclaimThread */
+    delete pobj;
+    pobj = nullptr;
+    LoopReclaimPurgeable(3);
+}
+
+HWTEST_F(PurgeableCppTest, MutiPageReadWriteTest, TestSize.Level1)
+{
+    char alphabet[4098];
+    size_t len = 0;
+    for (char ch = 'D'; len < 4098;) {
+        alphabet[len++] = ch;
+    }
+    alphabet[4097] = 0;
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
+    PurgeableMem *pobj = new PurgeableMem(4098, std::move(builder));
+    /* loop reclaim thread */
+    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    pthread_t reclaimPid = reclaimThread.native_handle();
+    reclaimThread.detach();
+    /* loop read thread */
+    std::thread readThread(LoopPrintAlphabet, pobj, (unsigned int)(-1));
+    pthread_t readPid = readThread.native_handle();
+    readThread.detach();
+
+    std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
+    std::unique_ptr<PurgeableMemBuilder> modB2C = std::make_unique<TestDataModifier>('B', 'C');
+    std::unique_ptr<PurgeableMemBuilder> modC2D = std::make_unique<TestDataModifier>('C', 'D');
+    ModifyPurgMemByBuilder(pobj, std::move(modA2B));
+    ModifyPurgMemByBuilder(pobj, std::move(modB2C));
+    ModifyPurgMemByBuilder(pobj, std::move(modC2D));
+
+    if (pobj->BeginRead()) {
+        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
+        pobj->EndRead();
+    } else {
+        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    }
+
+    pthread_cancel(readPid); /* destroy readThread */
+    pthread_cancel(reclaimPid); /* destroy reclaimThread */
+    std::this_thread::sleep_for(std::chrono::seconds(2 * PRINT_INTERVAL_SECONDS));
+    delete pobj;
+    pobj = nullptr;
+}
+
+HWTEST_F(PurgeableCppTest, MutiMorePageReadWriteTest, TestSize.Level1)
+{
+    char alphabet[8194];
+    size_t len = 0;
+    for (char ch = 'D'; len < 8194;) {
+        alphabet[len++] = ch;
+    }
+    alphabet[8193] = 0;
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
+    PurgeableMem *pobj = new PurgeableMem(8194, std::move(builder));
+    /* loop reclaim thread */
+    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    pthread_t reclaimPid = reclaimThread.native_handle();
+    reclaimThread.detach();
+    /* loop read thread */
+    std::thread readThread(LoopPrintAlphabet, pobj, (unsigned int)(-1));
+    pthread_t readPid = readThread.native_handle();
+    readThread.detach();
+
+    std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
+    std::unique_ptr<PurgeableMemBuilder> modB2C = std::make_unique<TestDataModifier>('B', 'C');
+    std::unique_ptr<PurgeableMemBuilder> modC2D = std::make_unique<TestDataModifier>('C', 'D');
+    ModifyPurgMemByBuilder(pobj, std::move(modA2B));
+    ModifyPurgMemByBuilder(pobj, std::move(modB2C));
+    ModifyPurgMemByBuilder(pobj, std::move(modC2D));
+
+    if (pobj->BeginRead()) {
+        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
+        pobj->EndRead();
+    } else {
+        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    }
+
+    pthread_cancel(readPid); /* destroy readThread */
+    pthread_cancel(reclaimPid); /* destroy reclaimThread */
+    std::this_thread::sleep_for(std::chrono::seconds(2 * PRINT_INTERVAL_SECONDS));
+    delete pobj;
+    pobj = nullptr;
+}
+
+HWTEST_F(PurgeableCppTest, InvalidInputSizeTest, TestSize.Level1)
+{
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
+    PurgeableMem *pobj = new PurgeableMem(0, std::move(builder));
+    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    pthread_t reclaimPid = reclaimThread.native_handle();
+    reclaimThread.detach();
+    bool ret = pobj->BeginRead();
+
+    EXPECT_EQ(ret, false);
+
+    pthread_cancel(reclaimPid); /* destroy reclaimThread */
+    delete pobj;
+    pobj = nullptr;
+    LoopReclaimPurgeable(3);
+}
+
+HWTEST_F(PurgeableCppTest, InvalidInputBuilderTest, TestSize.Level1)
+{
+    PurgeableMem *pobj = new PurgeableMem(27, nullptr);
+    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    pthread_t reclaimPid = reclaimThread.native_handle();
+    reclaimThread.detach();
+    bool ret = pobj->BeginRead();
+
+    EXPECT_EQ(ret, false);
+
+    pthread_cancel(reclaimPid); /* destroy reclaimThread */
+    delete pobj;
+    pobj = nullptr;
+    LoopReclaimPurgeable(3);
 }
 
 void LoopPrintAlphabet(PurgeableMem *pdata, unsigned int loopCount)
