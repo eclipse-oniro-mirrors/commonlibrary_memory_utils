@@ -16,7 +16,7 @@
 #include <cstdio>
 #include <thread>
 #include <memory> /* unique_ptr */
-
+#include <string.h>
 #include "gtest/gtest.h"
 #include "purgeable_mem.h"
 
@@ -82,8 +82,6 @@ public:
                 str[i] = to;
             }
         }
-        std::cout << "modify addr("<< (unsigned long long)str <<") " <<
-            from << "->" << to << ", data=[" << str << "]" << std::endl;
         return true;
     }
 
@@ -153,14 +151,14 @@ void PurgeableCppTest::TearDown()
 HWTEST_F(PurgeableCppTest, MultiObjCreateTest, TestSize.Level1)
 {
     const char alphabetFinal[] = "BBCDEFGHIJKLMNOPQRSTUVWXYZ\0";
-    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
+    std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
     std::unique_ptr<PurgeableMemBuilder> builder2 = std::make_unique<TestDataBuilder>('A', 'Z');
-    PurgeableMem pobj1(27, std::move(builder));
-    std::unique_ptr<PurgeableMemBuilder> mod = std::make_unique<TestDataModifier>('A', 'B');
+    std::unique_ptr<PurgeableMemBuilder> mod1 = std::make_unique<TestDataModifier>('A', 'B');
     std::unique_ptr<PurgeableMemBuilder> mod2 = std::make_unique<TestDataModifier>('A', 'B');
 
+    PurgeableMem pobj1(27, std::move(builder1));
     LoopPrintAlphabet(&pobj1, 1);
-    ModifyPurgMemByBuilder(&pobj1, std::move(mod));
+    ModifyPurgMemByBuilder(&pobj1, std::move(mod1));
     LoopPrintAlphabet(&pobj1, 1);
     LoopReclaimPurgeable(1);
 
@@ -168,20 +166,34 @@ HWTEST_F(PurgeableCppTest, MultiObjCreateTest, TestSize.Level1)
     LoopPrintAlphabet(&pobj2, 1);
     ModifyPurgMemByBuilder(&pobj2, std::move(mod2));
     LoopPrintAlphabet(&pobj2, 1);
+    LoopReclaimPurgeable(1);
 
-    if (pobj1.BeginRead()) {
-        ASSERT_STREQ(alphabetFinal, (char *)(pobj1.GetContent()));
-        pobj1.EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    int ret1 = 1;
+    int ret2 = 1;
+    int times1 = 0;
+    int times2 = 0;
+    while (times1++ < 10) {
+        if (pobj1.BeginRead()) {
+            ret1 = strncmp(alphabetFinal, (char *)(pobj1.GetContent()), 26);
+            pobj1.EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
 
-    if (pobj2.BeginRead()) {
-        ASSERT_STREQ(alphabetFinal, (char *)(pobj2.GetContent()));
-        pobj2.EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    while (times2++ < 10) {
+        if (pobj2.BeginRead()) {
+            ret2 = strncmp(alphabetFinal, (char *)(pobj2.GetContent()), 26);
+            pobj2.EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
+
+    EXPECT_EQ(ret1, 0);
+    EXPECT_EQ(ret2, 0);
 }
 
 HWTEST_F(PurgeableCppTest, ReadTest, TestSize.Level1)
@@ -189,22 +201,22 @@ HWTEST_F(PurgeableCppTest, ReadTest, TestSize.Level1)
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableMem *pobj = new PurgeableMem(27, std::move(builder));
-
     LoopReclaimPurgeable(1);
 
-    unsigned int loopCount = 3;
-    /* loop read content */
-    for (unsigned int i = 0; i < loopCount; i++) {
-        if (!pobj->BeginRead()) {
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 26);
+            pobj->EndRead();
+            break;
+        } else {
             std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
-            continue;
         }
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
     }
-
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, WriteTest, TestSize.Level1)
@@ -219,15 +231,20 @@ HWTEST_F(PurgeableCppTest, WriteTest, TestSize.Level1)
     ModifyPurgMemByBuilder(pobj, std::move(modA2B));
     ModifyPurgMemByBuilder(pobj, std::move(modB2C));
 
-    if (pobj->BeginRead()) {
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 26);
+            pobj->EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
-
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, ReadWriteTest, TestSize.Level1)
@@ -246,16 +263,20 @@ HWTEST_F(PurgeableCppTest, ReadWriteTest, TestSize.Level1)
     ModifyPurgMemByBuilder(pobj, std::move(modB2C));
     ModifyPurgMemByBuilder(pobj, std::move(modC2D));
 
-    if (pobj->BeginRead()) {
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 26);
+            pobj->EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(2 * PRINT_INTERVAL_SECONDS));
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, MutiPageReadTest, TestSize.Level1)
@@ -271,19 +292,20 @@ HWTEST_F(PurgeableCppTest, MutiPageReadTest, TestSize.Level1)
 
     LoopReclaimPurgeable(1);
 
-    unsigned int loopCount = 3;
-    /* loop read content */
-    for (unsigned int i = 0; i < loopCount; i++) {
-        if (!pobj->BeginRead()) {
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 4097);
+            pobj->EndRead();
+            break;
+        } else {
             std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
-            continue;
         }
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
     }
-
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, MutiPageWriteTest, TestSize.Level1)
@@ -304,15 +326,20 @@ HWTEST_F(PurgeableCppTest, MutiPageWriteTest, TestSize.Level1)
     ModifyPurgMemByBuilder(pobj, std::move(modA2B));
     ModifyPurgMemByBuilder(pobj, std::move(modB2C));
 
-    if (pobj->BeginRead()) {
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 4097);
+            pobj->EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
-
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, MutiPageReadWriteTest, TestSize.Level1)
@@ -335,28 +362,33 @@ HWTEST_F(PurgeableCppTest, MutiPageReadWriteTest, TestSize.Level1)
     ModifyPurgMemByBuilder(pobj, std::move(modB2C));
     ModifyPurgMemByBuilder(pobj, std::move(modC2D));
 
-    if (pobj->BeginRead()) {
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 4097);
+            pobj->EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(2 * PRINT_INTERVAL_SECONDS));
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, MutiMorePageReadWriteTest, TestSize.Level1)
 {
-    char alphabet[8194];
+    size_t size = 5 * 1024 * 1024;
+    char *alphabet = (char *)malloc(size);
     size_t len = 0;
-    for (char ch = 'D'; len < 8194;) {
+    for (char ch = 'D'; len < size;) {
         alphabet[len++] = ch;
     }
-    alphabet[8193] = 0;
+    alphabet[size - 1] = 0;
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
-    PurgeableMem *pobj = new PurgeableMem(8194, std::move(builder));
+    PurgeableMem *pobj = new PurgeableMem(size, std::move(builder));
 
     LoopReclaimPurgeable(1);
     LoopPrintAlphabet(pobj, 1);
@@ -368,16 +400,22 @@ HWTEST_F(PurgeableCppTest, MutiMorePageReadWriteTest, TestSize.Level1)
     ModifyPurgMemByBuilder(pobj, std::move(modB2C));
     ModifyPurgMemByBuilder(pobj, std::move(modC2D));
 
-    if (pobj->BeginRead()) {
-        ASSERT_STREQ(alphabet, (char *)(pobj->GetContent()));
-        pobj->EndRead();
-    } else {
-        std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj->BeginRead()) {
+            ret = strncmp(alphabet, (char *)(pobj->GetContent()), size - 1);
+            pobj->EndRead();
+            break;
+        } else {
+            std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
+        }
     }
-
-    std::this_thread::sleep_for(std::chrono::seconds(2 * PRINT_INTERVAL_SECONDS));
     delete pobj;
     pobj = nullptr;
+    free(alphabet);
+    alphabet = nullptr;
+    EXPECT_EQ(ret, 0);
 }
 
 HWTEST_F(PurgeableCppTest, InvalidInputSizeTest, TestSize.Level1)
@@ -386,11 +424,12 @@ HWTEST_F(PurgeableCppTest, InvalidInputSizeTest, TestSize.Level1)
     PurgeableMem *pobj = new PurgeableMem(0, std::move(builder));
     LoopReclaimPurgeable(1);
     bool ret = pobj->BeginRead();
-
-    EXPECT_EQ(ret, false);
-
+    if (ret) {
+        pobj->EndRead();
+    }
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, false);
 }
 
 HWTEST_F(PurgeableCppTest, InvalidInputBuilderTest, TestSize.Level1)
@@ -398,11 +437,12 @@ HWTEST_F(PurgeableCppTest, InvalidInputBuilderTest, TestSize.Level1)
     PurgeableMem *pobj = new PurgeableMem(27, nullptr);
     LoopReclaimPurgeable(1);
     bool ret = pobj->BeginRead();
-
-    EXPECT_EQ(ret, false);
-
+    if (ret) {
+        pobj->EndRead();
+    }
     delete pobj;
     pobj = nullptr;
+    EXPECT_EQ(ret, false);
 }
 
 void LoopPrintAlphabet(PurgeableMem *pdata, unsigned int loopCount)
@@ -413,8 +453,6 @@ void LoopPrintAlphabet(PurgeableMem *pdata, unsigned int loopCount)
             std::cout << __func__ << ": " << i << ". ERROR! BeginRead failed." << std::endl;
             break;
         }
-        std::cout << __func__ << ": " << i << ". data=[" <<
-            (char *)(pdata->GetContent()) << "]" << std::endl;
         pdata->EndRead();
         std::this_thread::sleep_for(std::chrono::seconds(PRINT_INTERVAL_SECONDS));
     }
@@ -425,7 +463,7 @@ bool ReclaimPurgeable(void)
 {
     FILE *f = fopen("/proc/sys/kernel/purgeable", "w");
     if (!f) {
-        std::cout << __func__ << ": open file failed" << std::endl;
+        std::cout << __func__ << ": kernel not support" << std::endl;
         return false;
     }
     bool succ = true;
@@ -459,11 +497,7 @@ void ModifyPurgMemByBuilder(PurgeableMem *pdata, std::unique_ptr<PurgeableMemBui
         return;
     }
     std::this_thread::sleep_for(std::chrono::seconds(MODIFY_INTERVAL_SECONDS));
-    std::cout << __func__ << " before mod data=[" << (char *)(pdata->GetContent()) << "]" << std::endl;
     pdata->ModifyContentByBuilder(std::move(mod));
-    std::cout<< __func__ << " after mod data=[" << (char *)(pdata->GetContent()) << "]" << std::endl;
-
-    std::cout << __func__ << " data=[" << (char *)(pdata->GetContent()) << "]" << std::endl;
     pdata->EndWrite();
 }
 } /* namespace PurgeableMem */
