@@ -38,6 +38,6 @@ ohos_shared_library("libpurgeablemem") {
     "hiviewdfx_hilog_native:libhilog",
   ]
   public_configs = [ ":libpurgeable_config" ]
-  subsystem_name = "utils"
+  subsystem_name = "commonlibrary"
   part_name = "utils_memory"
 }

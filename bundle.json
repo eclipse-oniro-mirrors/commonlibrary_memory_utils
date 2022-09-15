@@ -9,7 +9,7 @@
   "license": "Apache License 2.0",
   "component": {
     "name": "utils_memory",
-    "subsystem": "utils",
+    "subsystem": "commonlibrary",
     "adapted_system_type": [ "standard" ],
     "deps": {
       "components": [
@@ -20,13 +20,13 @@
     },
     "build": {
       "sub_component": [
-          "//utils/memory/libdmabufheap:libdmabufheap",
-          "//utils/memory/libpurgeablemem:libpurgeablemem"
+          "//commonlibrary/utils_memory/libdmabufheap:libdmabufheap",
+          "//commonlibrary/utils_memory/libpurgeablemem:libpurgeablemem"
       ],
       "inner_kits": [],
       "test": [
-          "//utils/memory/libdmabufheap/test:unittest",
-          "//utils/memory/libpurgeablemem/test:libpurgeablemem_test"
+          "//commonlibrary/utils_memory/libdmabufheap/test:unittest",
+          "//commonlibrary/utils_memory/libpurgeablemem/test:libpurgeablemem_test"
       ]
     }
   }
