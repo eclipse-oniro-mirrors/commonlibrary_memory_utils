@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H
-#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H
+#ifndef OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H
+#define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H
 
 #ifdef __cplusplus
 #if __cplusplus
@@ -64,4 +64,4 @@ const char *GetPMStateName(PMState state);
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
-#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H */
+#endif /* OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_STATE_C_H */

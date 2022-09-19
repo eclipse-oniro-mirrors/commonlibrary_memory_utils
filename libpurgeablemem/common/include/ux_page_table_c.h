@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H
-#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H
+#ifndef OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H
+#define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H
 
 #include <stdint.h> /* uint64_t */
 #include <stdbool.h> /* bool */
@@ -46,4 +46,4 @@ bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len);
 }
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
-#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H */
+#endif /* OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_UX_PAGE_TABLE_C_H */
