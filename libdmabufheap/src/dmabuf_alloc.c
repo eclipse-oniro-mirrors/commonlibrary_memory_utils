@@ -20,8 +20,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <linux/dma-buf.h>
-#include <linux/dma-heap.h>
 #include "securec.h"
 #include "hilog/log.h"
 #include "dmabuf_alloc.h"
