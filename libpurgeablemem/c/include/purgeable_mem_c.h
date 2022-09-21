@@ -13,8 +13,8 @@
  * limitations under the License.
  */
 
-#ifndef OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
-#define OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
+#ifndef OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
+#define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H
 
 #include <stdbool.h> /* bool */
 #include <stddef.h> /* size_t */
@@ -30,7 +30,7 @@ struct PurgMem;
 
 /*
  * Function pointer, it points to a function which build content of a PurgMem obj.
- * Input:   void *: data ptr, ponits to start address of a PurgMem obj's content.
+ * Input:   void *: data ptr, points to start address of a PurgMem obj's content.
  * Input:   size_t: data size of the content.
  * Input:   void *: other private parameters.
  * Return:  build content result, true means success, while false is fail.
@@ -128,4 +128,4 @@ bool PurgMemAppendModify(struct PurgMem *purgObj, PurgMemModifyFunc func, void *
 #endif /* End of #if __cplusplus */
 #endif /* End of #ifdef __cplusplus */
 
-#endif /* OHOS_UTILS_MEMOEY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H */
+#endif /* OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_C_INCLUDE_PURGEABLE_MEM_C_H */
