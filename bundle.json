@@ -1,5 +1,5 @@
 {
-  "name": "@ohos/utils_memory",
+  "name": "@ohos/commonlibrary_memory_utils",
   "version": "3.1.0",
   "description": "memory base libraries",
   "publishAs": "source",
@@ -8,7 +8,7 @@
   "repository": "",
   "license": "Apache License 2.0",
   "component": {
-    "name": "utils_memory",
+    "name": "memory_utils",
     "subsystem": "commonlibrary",
     "adapted_system_type": [ "standard" ],
     "deps": {
@@ -20,13 +20,13 @@
     },
     "build": {
       "sub_component": [
-          "//commonlibrary/utils_memory/libdmabufheap:libdmabufheap",
-          "//commonlibrary/utils_memory/libpurgeablemem:libpurgeablemem"
+          "//commonlibrary/memory_utils/libdmabufheap:libdmabufheap",
+          "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem"
       ],
       "inner_kits": [],
       "test": [
-          "//commonlibrary/utils_memory/libdmabufheap/test:unittest",
-          "//commonlibrary/utils_memory/libpurgeablemem/test:libpurgeablemem_test"
+          "//commonlibrary/memory_utils/libdmabufheap/test:unittest",
+          "//commonlibrary/memory_utils/libpurgeablemem/test:libpurgeablemem_test"
       ]
     }
   }
