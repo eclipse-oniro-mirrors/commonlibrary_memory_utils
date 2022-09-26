@@ -28,7 +28,7 @@
 | libdmabufheap  | 多媒体相关服务      |
 | libmeminfo     | 内存管理服务         |
 | libmemleak     | 内存管理服务         |
-| libpurgeable   | 图形图像相关服务（规划中） |
+| libpurgeable   | 图形图像相关服务   |
 | libspeculative | 系统服务（规划中） |
 
 ## 目录<a name="section_catalogue"></a>
