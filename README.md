@@ -72,7 +72,7 @@ It provides management interfaces for speculative-type memory. It is mainly used
 
 System developers can add or remove this part by configuring the product definition JSON file under **/productdefine/common/products** to enable or disable this part:
 
-` "commonlibrary:utils_memory":{} `
+` "commonlibrary:memory_utils":{} `
 
 ## Repositories Involved<a name="section_projects"></a>
 
