@@ -19,7 +19,7 @@ module_output_path = "libpurgeablemem/"
 
 purgeable_deps = [
   "//base/hiviewdfx/hilog/interfaces/native/innerkits:libhilog",
-  "//commonlibrary/utils_memory/libpurgeablemem:libpurgeablemem",
+  "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem",
 ]
 
 purgeable_external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
@@ -36,7 +36,7 @@ ohos_unittest("purgeable_c_test") {
   }
 
   subsystem_name = "commonlibrary"
-  part_name = "utils_memory"
+  part_name = "memory_utils"
 }
 
 ohos_unittest("purgeable_cpp_test") {
@@ -49,7 +49,7 @@ ohos_unittest("purgeable_cpp_test") {
   }
 
   subsystem_name = "commonlibrary"
-  part_name = "utils_memory"
+  part_name = "memory_utils"
 }
 
 group("libpurgeablemem_test") {
