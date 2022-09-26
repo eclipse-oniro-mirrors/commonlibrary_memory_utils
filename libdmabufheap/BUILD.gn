@@ -26,5 +26,5 @@ ohos_shared_library("libdmabufheap") {
   ]
   public_configs = [ ":libdmabufheap_config" ]
   subsystem_name = "commonlibrary"
-  part_name = "utils_memory"
+  part_name = "memory_utils"
 }
