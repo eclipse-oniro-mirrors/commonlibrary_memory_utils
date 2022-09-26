@@ -14,6 +14,7 @@
  */
 
 #include <cstdio>
+#include <climits>
 #include <thread>
 
 #include "gtest/gtest.h"
@@ -77,24 +78,24 @@ HWTEST_F(PurgeableCTest, MultiObjCreateTest, TestSize.Level1)
     struct PurgMem *pobj1 = PurgMemCreate(27, InitAlphabet, &initPara);
     LoopPrintAlphabet(pobj1, 1);
     struct AlphabetModifyParam a2b = {'A', 'B'};
-    ModifyPurgMemByFunc(pobj1, ModifyAlphabetX2Y, (void *)&a2b);
+    ModifyPurgMemByFunc(pobj1, ModifyAlphabetX2Y, static_cast<void *>(&a2b));
     LoopPrintAlphabet(pobj1, 1);
     LoopReclaimPurgeable(1);
 
     struct PurgMem *pobj2 = PurgMemCreate(27, InitAlphabet, &initPara);
     LoopPrintAlphabet(pobj2, 1);
-    ModifyPurgMemByFunc(pobj2, ModifyAlphabetX2Y, (void *)&a2b);
+    ModifyPurgMemByFunc(pobj2, ModifyAlphabetX2Y, static_cast<void *>(&a2b));
     LoopPrintAlphabet(pobj2, 1);
 
     if (PurgMemBeginRead(pobj1)) {
-        ASSERT_STREQ(alphabetFinal, (char *)PurgMemGetContent(pobj1));
+        ASSERT_STREQ(alphabetFinal, static_cast<char *>(PurgMemGetContent(pobj1)));
         PurgMemEndRead(pobj1);
     } else {
         std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
     }
 
     if (PurgMemBeginRead(pobj2)) {
-        ASSERT_STREQ(alphabetFinal, (char *)PurgMemGetContent(pobj2));
+        ASSERT_STREQ(alphabetFinal, static_cast<char *>(PurgMemGetContent(pobj2)));
         PurgMemEndRead(pobj2);
     } else {
         std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
@@ -109,7 +110,7 @@ HWTEST_F(PurgeableCTest, ReadTest, TestSize.Level1)
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     struct AlphabetInitParam initPara = {'A', 'Z'};
     struct PurgMem *pobj = PurgMemCreate(27, InitAlphabet, &initPara);
-    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    std::thread reclaimThread(LoopReclaimPurgeable, UINT_MAX);
     pthread_t reclaimPid = reclaimThread.native_handle();
     reclaimThread.detach();
 
@@ -120,7 +121,7 @@ HWTEST_F(PurgeableCTest, ReadTest, TestSize.Level1)
             std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
             continue;
         }
-        ASSERT_STREQ(alphabet, (char *)PurgMemGetContent(pobj));
+        ASSERT_STREQ(alphabet, static_cast<char *>(PurgMemGetContent(pobj)));
         PurgMemEndRead(pobj);
     }
 
@@ -133,17 +134,17 @@ HWTEST_F(PurgeableCTest, WriteTest, TestSize.Level1)
     const char alphabet[] = "CCCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     struct AlphabetInitParam initPara = {'A', 'Z'};
     struct PurgMem *pobj = PurgMemCreate(27, InitAlphabet, &initPara);
-    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    std::thread reclaimThread(LoopReclaimPurgeable, UINT_MAX);
     pthread_t reclaimPid = reclaimThread.native_handle();
     reclaimThread.detach();
 
     struct AlphabetModifyParam a2b = {'A', 'B'};
     struct AlphabetModifyParam b2c = {'B', 'C'};
-    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, (void *)&a2b);
-    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, (void *)&b2c);
+    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, static_cast<void *>(&a2b));
+    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, static_cast<void *>(&b2c));
 
     if (PurgMemBeginRead(pobj)) {
-        ASSERT_STREQ(alphabet, (char *)PurgMemGetContent(pobj));
+        ASSERT_STREQ(alphabet, static_cast<char *>(PurgMemGetContent(pobj)));
         PurgMemEndRead(pobj);
     } else {
         std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
@@ -160,23 +161,23 @@ HWTEST_F(PurgeableCTest, ReadWriteTest, TestSize.Level1)
     struct AlphabetInitParam initPara = {'A', 'Z'};
     struct PurgMem *pobj = PurgMemCreate(27, InitAlphabet, &initPara);
     /* loop reclaim thread */
-    std::thread reclaimThread(LoopReclaimPurgeable, (unsigned int)(-1));
+    std::thread reclaimThread(LoopReclaimPurgeable, UINT_MAX);
     pthread_t reclaimPid = reclaimThread.native_handle();
     reclaimThread.detach();
     /* loop read thread */
-    std::thread readThread(LoopPrintAlphabet, pobj, (unsigned int)(-1));
+    std::thread readThread(LoopPrintAlphabet, pobj, UINT_MAX);
     pthread_t readPid = readThread.native_handle();
     readThread.detach();
 
     struct AlphabetModifyParam a2b = {'A', 'B'};
     struct AlphabetModifyParam b2c = {'B', 'C'};
     struct AlphabetModifyParam c2d = {'C', 'D'};
-    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, (void *)&a2b);
-    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, (void *)&b2c);
-    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, (void *)&c2d);
+    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, static_cast<void *>(&a2b));
+    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, static_cast<void *>(&b2c));
+    ModifyPurgMemByFunc(pobj, ModifyAlphabetX2Y, static_cast<void *>(&c2d));
 
     if (PurgMemBeginRead(pobj)) {
-        ASSERT_STREQ(alphabet, (char *)PurgMemGetContent(pobj));
+        ASSERT_STREQ(alphabet, static_cast<char *>(PurgMemGetContent(pobj)));
         PurgMemEndRead(pobj);
     } else {
         std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
