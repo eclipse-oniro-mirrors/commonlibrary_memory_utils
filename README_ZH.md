@@ -42,12 +42,12 @@
 ├── libmeminfo              # 内存占用查询库
 ├── libmemleak              # 内存泄漏检测库
 ├── libpurgeable            # 可丢弃类型内存管理库
-│   ├── include             # purgeable memory内存分配链接库头文件目录
-|   │   ├── c               # purgeanme memorry内存分配的c接口
-|   │   ├── common          # purgeanme memorry内存分配的公共色痕迹
-|   │   └── cpp             # purgeanme memorry内存分配的cpp接口
-│   ├── src                 # purgeable memory内存分配链接库源代码目录
-│   └── test                # purgeable memory内存分配链接库自测用例目录
+│   ├── include             # purgeable类型内存分配链接库头文件目录
+|   │   ├── c               # purgeable类型内存分配的c接口目录
+|   │   ├── common          # purgeable类型内存分配的公共接口目录
+|   │   └── cpp             # purgeable类型内存分配的cpp接口目录
+│   ├── src                 # purgeable类型内存分配链接库源代码目录
+│   └── test                # purgeable类型内存分配链接库自测用例目录
 └── libspeculative          # 投机类型内存管理库
 ```
 
@@ -70,7 +70,7 @@
 
 ### libpurgeable系统库<a name="section_libpurgeable"></a>
 
-为多媒体相关服务提供可丢弃类型内存的管理接口。用于存放能重新构建出来的数据，降低进程内存占用。
+为多媒体相关服务提供可丢弃类型内存的专用内存申请接口。在系统可用内存不足时，purgeable内存被系统直接丢弃，实现内存快速回收。应用再次被使用时，已经被释放的purgeable内存能够进行重建。
 
 ### libspeculative系统库（规划中）<a name="section_libspeculative"></a>
 
