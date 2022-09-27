@@ -23,6 +23,7 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <climits>
+#include "securec.h"
 #include "gtest/gtest.h"
 #include "dmabuf_alloc.h"
 
@@ -69,7 +70,7 @@ HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
 
     ASSERT_EQ(0, DmabufHeapBufferSyncStart(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
-    ASSERT_GE(sprintf((char *)ptr, "libdmabufheap"), 0);
+    ASSERT_GE(sprintf_s((char *)ptr, BUFFER_SIZE, "libdmabufheap"), 0);
 
     ASSERT_EQ(0, DmabufHeapBufferSyncEnd(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
@@ -95,7 +96,7 @@ HWTEST_F(DmabufAllocTest, ShareBufferBetweenProcess, Function|MediumTest|Level1)
 
     ASSERT_EQ(0, DmabufHeapBufferSyncStart(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
-    ASSERT_GE(sprintf((char *)ptr, "parent"), 0);
+    ASSERT_GE(sprintf_s((char *)ptr, BUFFER_SIZE, "parent"), 0);
 
     ASSERT_EQ(0, DmabufHeapBufferSyncEnd(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
@@ -110,7 +111,7 @@ HWTEST_F(DmabufAllocTest, ShareBufferBetweenProcess, Function|MediumTest|Level1)
 
         ASSERT_STREQ("parent", (char *)ptr);
 
-        ASSERT_GE(sprintf((char *)ptr, "child"), 0);
+        ASSERT_GE(sprintf_s((char *)ptr, BUFFER_SIZE, "child"), 0);
 
         ASSERT_EQ(0, DmabufHeapBufferSyncEnd(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
@@ -224,7 +225,7 @@ HWTEST_F(DmabufAllocTest, SyncBufferTwice, Function|MediumTest|Level1)
 
     ASSERT_EQ(0, DmabufHeapBufferSyncStart(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
-    ASSERT_GE(sprintf((char *)ptr, "libdmabufheap"), 0);
+    ASSERT_GE(sprintf_s((char *)ptr, BUFFER_SIZE, "libdmabufheap"), 0);
 
     ASSERT_EQ(0, DmabufHeapBufferSyncEnd(buffer.fd, DMA_BUF_HEAP_BUF_SYNC_RW));
 
