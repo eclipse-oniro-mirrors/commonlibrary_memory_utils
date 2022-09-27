@@ -16,7 +16,7 @@
 #include <cstdio>
 #include <thread>
 #include <memory> /* unique_ptr */
-#include <string.h>
+#include <cstring>
 #include "gtest/gtest.h"
 #include "purgeable_mem.h"
 
@@ -46,7 +46,7 @@ public:
         if (size <= 0) {
             return true;
         }
-        char *str = (char *)data;
+        char *str = static_cast<char *>(data);
         size_t len = 0;
         for (char ch = start; ch <= end && len < size; ch++) {
             str[len++] = ch;
@@ -76,7 +76,7 @@ public:
 
     bool Build(void *data, size_t size)
     {
-        char *str = (char *)data;
+        char *str = static_cast<char *>(data);
         for (size_t i = 0; str[i] && i < size; i++) {
             if (str[i] == from) {
                 str[i] = to;
@@ -106,7 +106,7 @@ public:
         if (size <= 0) {
             return true;
         }
-        char *str = (char *)data;
+        char *str = static_cast<char *>(data);
         size_t len = 0;
         for (char ch = target; len < size;) {
             str[len++] = ch;
@@ -174,7 +174,7 @@ HWTEST_F(PurgeableCppTest, MultiObjCreateTest, TestSize.Level1)
     int times2 = 0;
     while (times1++ < 10) {
         if (pobj1.BeginRead()) {
-            ret1 = strncmp(alphabetFinal, (char *)(pobj1.GetContent()), 26);
+            ret1 = strncmp(alphabetFinal, static_cast<char *>(pobj1.GetContent()), 26);
             pobj1.EndRead();
             break;
         } else {
@@ -184,7 +184,7 @@ HWTEST_F(PurgeableCppTest, MultiObjCreateTest, TestSize.Level1)
 
     while (times2++ < 10) {
         if (pobj2.BeginRead()) {
-            ret2 = strncmp(alphabetFinal, (char *)(pobj2.GetContent()), 26);
+            ret2 = strncmp(alphabetFinal, static_cast<char *>(pobj2.GetContent()), 26);
             pobj2.EndRead();
             break;
         } else {
@@ -207,7 +207,7 @@ HWTEST_F(PurgeableCppTest, ReadTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 26);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), 26);
             pobj->EndRead();
             break;
         } else {
@@ -235,7 +235,7 @@ HWTEST_F(PurgeableCppTest, WriteTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 26);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), 26);
             pobj->EndRead();
             break;
         } else {
@@ -267,7 +267,7 @@ HWTEST_F(PurgeableCppTest, ReadWriteTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 26);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), 26);
             pobj->EndRead();
             break;
         } else {
@@ -296,7 +296,7 @@ HWTEST_F(PurgeableCppTest, MutiPageReadTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 4097);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), 4097);
             pobj->EndRead();
             break;
         } else {
@@ -330,7 +330,7 @@ HWTEST_F(PurgeableCppTest, MutiPageWriteTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 4097);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), 4097);
             pobj->EndRead();
             break;
         } else {
@@ -366,7 +366,7 @@ HWTEST_F(PurgeableCppTest, MutiPageReadWriteTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), 4097);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), 4097);
             pobj->EndRead();
             break;
         } else {
@@ -404,7 +404,7 @@ HWTEST_F(PurgeableCppTest, MutiMorePageReadWriteTest, TestSize.Level1)
     int ret = 1;
     while (times++ < 10) {
         if (pobj->BeginRead()) {
-            ret = strncmp(alphabet, (char *)(pobj->GetContent()), size - 1);
+            ret = strncmp(alphabet, static_cast<char *>(pobj->GetContent()), size - 1);
             pobj->EndRead();
             break;
         } else {

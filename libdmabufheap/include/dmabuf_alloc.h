@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <linux/dma-buf.h>
+#include <linux/dma-heap.h>
 
 #undef LOG_TAG
 #define LOG_TAG "dmabufheap"
