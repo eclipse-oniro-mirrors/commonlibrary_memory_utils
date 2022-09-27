@@ -7,7 +7,7 @@
     -   [libdmabufheap system library](#section_libdmabufheap)
     -   [libmeminfo system library (planning)](#section_libmeminfo)
     -   [libmemleak system library (planning)](#section_libmemleak)
-    -   [libpurgeable system library (planning)](#section_libpurgeable)
+    -   [libpurgeable system library](#section_libpurgeable)
     -   [libspeculative system library (planning)](#section_libspeculative)
 -   [Usage Guidelines](#section_usage)
 -   [Repositories Involved](#section_projects)
