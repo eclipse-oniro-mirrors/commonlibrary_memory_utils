@@ -27,7 +27,7 @@ The part of *Memory base libraries* belongs to the subsystem named *Utils Subsys
 | libdmabufheap  | multimedia service      |
 | libmeminfo     | memory manager service         |
 | libmemleak     | memory manager service         |
-| libpurgeable   | graphic service (planning) |
+| libpurgeable   | graphic service  |
 | libspeculative | system service (planning) |
 
 ## Directory Structure<a name="section_catalogue"></a>
