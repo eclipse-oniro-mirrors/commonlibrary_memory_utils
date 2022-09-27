@@ -1,87 +1,79 @@
-# 内存基础库部件
+# The Part of Memory Base Libraries
 
-- [内存基础库部件](#内存基础库部件)
-  - [简介<a name="section_introduction"></a>](#简介)
-  - [部件架构<a name="section_architecture"></a>](#部件架构)
-  - [目录<a name="section_catalogue"></a>](#目录)
-  - [内存基础库<a name="section_libraries"></a>](#内存基础库)
-    - [libdmabufheap系统库<a name="section_libdmabufheap"></a>](#libdmabufheap系统库)
-    - [libmeminfo系统库（规划中）<a name="section_libmeminfo"></a>](#libmeminfo系统库规划中)
-    - [libmemleak系统库（规划中）<a name="section_libmemleak"></a>](#libmemleak系统库规划中)
-    - [libpurgeable系统库<a name="section_libpurgeable"></a>](#libpurgeable系统库)
-    - [libspeculative系统库（规划中）<a name="section_libspeculative"></a>](#libspeculative系统库规划中)
-  - [使用说明<a name="section_usage"></a>](#使用说明)
-  - [相关仓<a name="section_projects"></a>](#相关仓)
+-   [Introduction](#section_introduction)
+-   [Architecture](#section_architecture)
+-   [Directory Structure](#section_catalogue)
+-   [Memory Base Libraries](#section_libraries)
+    -   [libdmabufheap system library](#section_libdmabufheap)
+    -   [libmeminfo system library (planning)](#section_libmeminfo)
+    -   [libmemleak system library (planning)](#section_libmemleak)
+    -   [libpurgeable system library (planning)](#section_libpurgeable)
+    -   [libspeculative system library (planning)](#section_libspeculative)
+-   [Usage Guidelines](#section_usage)
+-   [Repositories Involved](#section_projects)
 
-## 简介<a name="section_introduction"></a>
+## Introduction<a name="section_introduction"></a>
 
-内存基础库部件位于公共基础库子系统中，为上层业务提供对应的操作内存的系统库，保证上层业务的稳定性。
+The part of *Memory base libraries* belongs to the subsystem named *Utils Subsystem*. It provides the system library for upper-layer services to operate memory, ensuring the stability of upper-layer services.
 
-## 部件架构<a name="section_architecture"></a>
+## Architecture<a name="section_architecture"></a>
 
-**图1** 内存基础库部件架构图
+**Figure  1** Memory Base Libraries architecture
 
-![](figures/zh-cn_image_fwk.png)
+![](figures/en-us_image_fwk.png)
 
-| 内存基础库 | 使用者                  |
+| Memory Base Libraries | User                  |
 | -------------- | -------------------------- |
-| libdmabufheap  | 多媒体相关服务      |
-| libmeminfo     | 内存管理服务         |
-| libmemleak     | 内存管理服务         |
-| libpurgeable   | 图形图像相关服务   |
-| libspeculative | 系统服务（规划中） |
+| libdmabufheap  | multimedia service      |
+| libmeminfo     | memory manager service         |
+| libmemleak     | memory manager service         |
+| libpurgeable   | graphic service (planning) |
+| libspeculative | system service (planning) |
 
-## 目录<a name="section_catalogue"></a>
+## Directory Structure<a name="section_catalogue"></a>
 
 ```
 /utils/memory
-├── libdmabufheap           # DMA (Direct Memory Access) 内存分配链接库
-│   ├── include             # DMA内存分配链接库头文件目录
-│   ├── src                 # DMA内存分配链接库源代码目录
-│   └── test                # DMA内存分配链接库自测用例目录
-├── libmeminfo              # 内存占用查询库
-├── libmemleak              # 内存泄漏检测库
-├── libpurgeable            # 可丢弃类型内存管理库
-│   ├── include             # purgeable memory内存分配链接库头文件目录
-|   │   ├── c               # purgeanme memorry内存分配的c接口
-|   │   ├── common          # purgeanme memorry内存分配的公共色痕迹
-|   │   └── cpp             # purgeanme memorry内存分配的cpp接口
-│   ├── src                 # purgeable memory内存分配链接库源代码目录
-│   └── test                # purgeable memory内存分配链接库自测用例目录
-└── libspeculative          # 投机类型内存管理库
+├── libdmabufheap           # DMA (Direct Memory Access) memory allocation system library
+│   ├── include             # DMA memory allocation system library header directory
+│   ├── src                 # DMA memory allocation system library source directory
+│   └── test                # DMA memory allocation system library usecase directory
+├── libmeminfo              # Memory footprint management library
+├── libmemleak              # Memory leak detection library
+├── libpurgeable            # Purgeable memory management library
+└── libspeculative          # Speculative memory management library
 ```
 
-## 内存基础库<a name="section_libraries"></a>
+## Memory Base Libraries<a name="section_libraries"></a>
 
-内存基础库是集成内存操作的系统库的部件，对内存操作的系统库进行统一管理。
+*Memory base libraries* is a component of the system library that integrates memory operations and manages them in a unified manner.
 
-### libdmabufheap系统库<a name="section_libdmabufheap"></a>
+### libdmabufheap system library<a name="section_libdmabufheap"></a>
 
-为多媒体相关服务提供分配共享内存的接口，通过在硬件设备和用户空间之间分配和共享内存，实现
-设备、进程间零拷贝内存，提升执行效率。
+The memory system library provides interfaces for the multimedia service to allocate and share shared memory. By allocating and sharing memory between hardware devices and user space, zero-copy memory between devices and processes is implemented to improve execution efficiency.
 
-### libmeminfo系统库（规划中）<a name="section_libmeminfo"></a>
+### libmeminfo system library (planning)<a name="section_libmeminfo"></a>
 
-提供内存占用查询接口，用于内存占用信息查询、低内存查杀等场景。
+It provides interfaces for memory usage queries. It is used for memory footprint query, low memory killing and other scenarios.
 
-### libmemleak系统库（规划中）<a name="section_libmemleak"></a>
+### libmemleak system library (planning)<a name="section_libmemleak"></a>
 
-配合malloc_debug做native heap内存泄漏检测。
+It cooperates with malloc_debug to detect memory leaks of native heap.
 
-### libpurgeable系统库<a name="section_libpurgeable"></a>
+### libpurgeable system library (planning)<a name="section_libpurgeable"></a>
 
-为多媒体相关服务提供可丢弃类型内存的管理接口。用于存放能重新构建出来的数据，降低进程内存占用。
+It provides management interfaces for discardable-type memory.
 
-### libspeculative系统库（规划中）<a name="section_libspeculative"></a>
+### libspeculative system library (planning)<a name="section_libspeculative"></a>
 
-提供投机类型内存管理接口，用于缓存预读。
+It provides management interfaces for speculative-type memory. It is mainly used by system services for data pre-loading.
 
-## 使用说明<a name="section_usage"></a>
+## Usage Guidelines<a name="section_usage"></a>
 
-系统开发者可以通过配置productdefine/common/products下的产品定义json文件，增加或移除本部件，来启用或停用本部件。
+System developers can add or remove this part by configuring the product definition JSON file under **/productdefine/common/products** to enable or disable this part:
 
 ` "utils:utils_memory":{} `
 
-## 相关仓<a name="section_projects"></a>
+## Repositories Involved<a name="section_projects"></a>
 
-[公共基础库子系统](https://gitee.com/openharmony/utils)
+[utils](https://gitee.com/openharmony/utils)
