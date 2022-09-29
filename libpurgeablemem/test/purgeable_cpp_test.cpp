@@ -77,7 +77,7 @@ public:
     bool Build(void *data, size_t size)
     {
         char *str = static_cast<char *>(data);
-        for (size_t i = 0; str[i] && i < size; i++) {
+        for (size_t i = 0; i < size && str[i]; i++) {
             if (str[i] == from) {
                 str[i] = to;
             }
