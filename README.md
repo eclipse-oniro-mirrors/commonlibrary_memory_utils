@@ -60,7 +60,7 @@ It provides interfaces for memory usage queries. It is used for memory footprint
 
 It cooperates with malloc_debug to detect memory leaks of native heap.
 
-### libpurgeable system library (planning)<a name="section_libpurgeable"></a>
+### libpurgeable system library<a name="section_libpurgeable"></a>
 
 It provides a dedicated memory request interface for discardable type memory for multimedia related services. When the available memory of the system is insufficient, the purgeable memory is directly discarded by the system to achieve rapid memory recovery. When the application is used again, the purgeable memory that has been freed can be rebuilt.
 
