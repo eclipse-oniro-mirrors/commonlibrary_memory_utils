@@ -25,6 +25,6 @@ ohos_shared_library("libdmabufheap") {
     "hiviewdfx_hilog_native:libhilog",
   ]
   public_configs = [ ":libdmabufheap_config" ]
-  subsystem_name = "utils"
-  part_name = "utils_memory"
+  subsystem_name = "commonlibrary"
+  part_name = "memory_utils"
 }
