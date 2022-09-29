@@ -213,7 +213,7 @@ bool ModifyData_(void *data, size_t size, char src, char dst)
 {
     char *str = (char *)data;
     size_t i = 0;
-    for (; str[i] && i < size; i++) {
+    for (; i < size && str[i]; i++) {
         if (str[i] == src) {
             str[i] = dst;
         }
