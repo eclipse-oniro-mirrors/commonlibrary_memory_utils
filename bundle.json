@@ -7,6 +7,9 @@
   "author": {},
   "repository": "",
   "license": "Apache License 2.0",
+  "segment": {
+    "destPath": "commonlibrary/memory_utils"
+  },
   "component": {
     "name": "memory_utils",
     "subsystem": "commonlibrary",
