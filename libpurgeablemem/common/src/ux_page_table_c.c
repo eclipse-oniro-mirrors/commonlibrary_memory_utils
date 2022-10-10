@@ -24,7 +24,7 @@
 #undef LOG_TAG
 #define LOG_TAG "PurgeableMemC: UPT"
 
-#if defined(USE_UXPT) && (USE_UXPT == true)  /* (USE_UXPT == true) means using uxpt */
+#if defined(USE_UXPT) && (USE_UXPT > 0)  /* (USE_UXPT > 0) means using uxpt */
 
 /*
  * using uint64_t as uxpte_t to avoid avoid confusion on 32-bit and 64 bit systems.
@@ -385,7 +385,7 @@ static int UnmapUxptePages_(uxpte_t *ptes, size_t size)
     return munmap(ptes, size);
 }
 
-#else /* !(defined(USE_UXPT) && (USE_UXPT == true)), it means does not using uxpt */
+#else /* !(defined(USE_UXPT) && (USE_UXPT <= 0)), it means does not using uxpt */
 
 typedef struct UserExtendPageTable {
     /* i am empty */
@@ -420,4 +420,4 @@ bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len)
     return true;
 }
 
-#endif /* USE_UXPT == true */
+#endif /* USE_UXPT > 0 */

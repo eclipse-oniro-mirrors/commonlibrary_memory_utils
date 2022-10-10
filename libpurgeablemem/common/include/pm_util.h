@@ -23,12 +23,12 @@ extern "C" {
 #endif /* End of #ifdef __cplusplus */
 
 /*
- * USE_UXPT is true means using uxpt using uxpt in libpurgeable,
- * while false means not using uxpt, false will be used in the following cases:
+ * USE_UXPT > 0 means enable uxpt(using uxpt) in libpurgeable,
+ * while USE_UXPT == 0 means not using uxpt, 0 will be used in the following cases:
  * case 1: if there is no purgeable mem module in kernel.
  * case 2: if you want close libpurgeable, meanwhile doesn't affect user programs.
  */
-#define USE_UXPT true
+#define USE_UXPT 1
 
 #define MAP_PURGEABLE 0x04
 #define MAP_USEREXPTE 0x08
@@ -44,7 +44,7 @@ extern "C" {
  * of user programs, this lib will provide normal anon memory. So
  * MAP_PURGEABLE is set to 0x0.
  */
-#if (USE_UXPT == false)
+#if !defined(USE_UXPT) || (USE_UXPT == 0)
 #undef MAP_PURGEABLE
 #define MAP_PURGEABLE 0x0
 #undef MAP_USEREXPTE
