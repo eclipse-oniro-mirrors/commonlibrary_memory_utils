@@ -23,6 +23,8 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <climits>
+#include <dirent.h>
+#include <string>
 #include "securec.h"
 #include "gtest/gtest.h"
 #include "dmabuf_alloc.h"
@@ -39,6 +41,7 @@ public:
     static void TearDownTestCase();
     void SetUp();
     void TearDown();
+    std::string heapName;
 };
 
 void DmabufAllocTest::SetUpTestCase()
@@ -51,6 +54,21 @@ void DmabufAllocTest::TearDownTestCase()
 
 void DmabufAllocTest::SetUp()
 {
+    std::string rootDir = "/dev/dma_heap/";
+    DIR *dir = opendir(rootDir.c_str());
+    if (dir == nullptr) {
+        return;
+    }
+    struct dirent *ptr;
+    while ((ptr = readdir(dir)) != nullptr) {
+        std::string fileName = ptr->d_name;
+        std::string::size_type idx = fileName.find("system");
+        if (idx != std::string::npos) {
+            heapName = fileName;
+            break;
+        }
+    }
+    closedir(dir);
 }
 
 void DmabufAllocTest::TearDown()
@@ -59,7 +77,9 @@ void DmabufAllocTest::TearDown()
 
 HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
 {
-    int heapFd = DmabufHeapOpen("system");
+    ASSERT_STRNE(heapName.c_str(), "");
+
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
@@ -85,7 +105,9 @@ HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
 
 HWTEST_F(DmabufAllocTest, ShareBufferBetweenProcess, Function|MediumTest|Level1)
 {
-    int heapFd = DmabufHeapOpen("system");
+    ASSERT_STRNE(heapName.c_str(), "");
+
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
@@ -153,7 +175,9 @@ HWTEST_F(DmabufAllocTest, OpenInvalidNameHeap, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, AllocInvalidSizeBuffer, Function|MediumTest|Level1)
 {
-    int heapFd = DmabufHeapOpen("system");
+    ASSERT_STRNE(heapName.c_str(), "");
+
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = 0 };
@@ -164,9 +188,11 @@ HWTEST_F(DmabufAllocTest, AllocInvalidSizeBuffer, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, BufferSyncWithWrongFd, Function|MediumTest|Level1)
 {
+    ASSERT_STRNE(heapName.c_str(), "");
+
     const unsigned int WRONG_FD = UINT_MAX;
 
-    int heapFd = DmabufHeapOpen("system");
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
@@ -188,9 +214,11 @@ HWTEST_F(DmabufAllocTest, BufferSyncWithWrongFd, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, BufferSyncWithWrongSyncType, Function|MediumTest|Level1)
 {
+    ASSERT_STRNE(heapName.c_str(), "");
+
     const unsigned int WRONG_SYNC_TYPE = UINT_MAX;
 
-    int heapFd = DmabufHeapOpen("system");
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
@@ -212,7 +240,9 @@ HWTEST_F(DmabufAllocTest, BufferSyncWithWrongSyncType, Function|MediumTest|Level
 
 HWTEST_F(DmabufAllocTest, SyncBufferTwice, Function|MediumTest|Level1)
 {
-    int heapFd = DmabufHeapOpen("system");
+    ASSERT_STRNE(heapName.c_str(), "");
+
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
@@ -242,7 +272,9 @@ HWTEST_F(DmabufAllocTest, SyncBufferTwice, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, ExchangeBufferSyncOrder, Function|MediumTest|Level1)
 {
-    int heapFd = DmabufHeapOpen("system");
+    ASSERT_STRNE(heapName.c_str(), "");
+
+    int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
