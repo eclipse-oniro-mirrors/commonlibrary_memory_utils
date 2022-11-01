@@ -110,9 +110,7 @@ HWTEST_F(PurgeableCTest, ReadTest, TestSize.Level1)
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     struct AlphabetInitParam initPara = {'A', 'Z'};
     struct PurgMem *pobj = PurgMemCreate(27, InitAlphabet, &initPara);
-    std::thread reclaimThread(LoopReclaimPurgeable, UINT_MAX);
-    pthread_t reclaimPid = reclaimThread.native_handle();
-    reclaimThread.detach();
+    LoopReclaimPurgeable(1);
 
     unsigned int loopCount = 3;
     /* loop read content */
@@ -125,7 +123,6 @@ HWTEST_F(PurgeableCTest, ReadTest, TestSize.Level1)
         PurgMemEndRead(pobj);
     }
 
-    pthread_cancel(reclaimPid); /* destroy reclaimThread */
     PurgMemDestroy(pobj);
 }
 
@@ -134,9 +131,7 @@ HWTEST_F(PurgeableCTest, WriteTest, TestSize.Level1)
     const char alphabet[] = "CCCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     struct AlphabetInitParam initPara = {'A', 'Z'};
     struct PurgMem *pobj = PurgMemCreate(27, InitAlphabet, &initPara);
-    std::thread reclaimThread(LoopReclaimPurgeable, UINT_MAX);
-    pthread_t reclaimPid = reclaimThread.native_handle();
-    reclaimThread.detach();
+    LoopReclaimPurgeable(1);
 
     struct AlphabetModifyParam a2b = {'A', 'B'};
     struct AlphabetModifyParam b2c = {'B', 'C'};
@@ -150,7 +145,6 @@ HWTEST_F(PurgeableCTest, WriteTest, TestSize.Level1)
         std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
     }
 
-    pthread_cancel(reclaimPid); /* destroy reclaimThread */
     PurgMemDestroy(pobj);
     LoopReclaimPurgeable(3);
 }
@@ -160,14 +154,8 @@ HWTEST_F(PurgeableCTest, ReadWriteTest, TestSize.Level1)
     const char alphabet[] = "DDDDEFGHIJKLMNOPQRSTUVWXYZ\0";
     struct AlphabetInitParam initPara = {'A', 'Z'};
     struct PurgMem *pobj = PurgMemCreate(27, InitAlphabet, &initPara);
-    /* loop reclaim thread */
-    std::thread reclaimThread(LoopReclaimPurgeable, UINT_MAX);
-    pthread_t reclaimPid = reclaimThread.native_handle();
-    reclaimThread.detach();
-    /* loop read thread */
-    std::thread readThread(LoopPrintAlphabet, pobj, UINT_MAX);
-    pthread_t readPid = readThread.native_handle();
-    readThread.detach();
+    LoopReclaimPurgeable(1);
+    LoopPrintAlphabet(pobj, 1);
 
     struct AlphabetModifyParam a2b = {'A', 'B'};
     struct AlphabetModifyParam b2c = {'B', 'C'};
@@ -183,8 +171,6 @@ HWTEST_F(PurgeableCTest, ReadWriteTest, TestSize.Level1)
         std::cout << __func__ << ": ERROR! BeginRead failed." << std::endl;
     }
 
-    pthread_cancel(reclaimPid); /* destroy reclaimThread */
-    pthread_cancel(readPid); /* destroy readThread */
     PurgMemDestroy(pobj);
 }
 
