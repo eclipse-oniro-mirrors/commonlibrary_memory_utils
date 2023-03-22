@@ -28,7 +28,9 @@ ohos_shared_library("libpurgeablemem") {
     "c/src/purgeable_mem_c.c",
     "common/src/pm_state_c.c",
     "common/src/ux_page_table_c.c",
+    "cpp/src/purgeable_ashmem.cpp",
     "cpp/src/purgeable_mem.cpp",
+    "cpp/src/purgeable_mem_base.cpp",
     "cpp/src/purgeable_mem_builder.cpp",
     "cpp/src/ux_page_table.cpp",
   ]

@@ -18,7 +18,7 @@
 #include <stdlib.h> /* malloc */
 
 #include "hilog/log_c.h"
-#include "../../common/include/pm_ptr_util.h"
+#include "pm_ptr_util.h"
 #include "purgeable_mem_builder_c.h"
 
 #undef LOG_TAG

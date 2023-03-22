@@ -43,7 +43,7 @@ private:
     /* Only called by its friend */
     void AppendBuilder(std::unique_ptr<PurgeableMemBuilder> builder);
     bool BuildAll(void *data, size_t size);
-    friend class PurgeableMem;
+    friend class PurgeableMemBase;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

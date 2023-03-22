@@ -22,7 +22,10 @@ purgeable_deps = [
   "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem",
 ]
 
-purgeable_external_deps = [ "hiviewdfx_hilog_native:libhilog" ]
+purgeable_external_deps = [
+  "c_utils:utils",
+  "hiviewdfx_hilog_native:libhilog",
+]
 
 purgeable_public_deps = [ "//third_party/googletest:gtest_main" ]
 
@@ -42,6 +45,19 @@ ohos_unittest("purgeable_c_test") {
 ohos_unittest("purgeable_cpp_test") {
   module_out_path = module_output_path
   sources = [ "purgeable_cpp_test.cpp" ]
+  deps = purgeable_deps
+  if (is_standard_system) {
+    external_deps = purgeable_external_deps
+    public_deps = purgeable_public_deps
+  }
+
+  subsystem_name = "commonlibrary"
+  part_name = "memory_utils"
+}
+
+ohos_unittest("purgeableashmem_test") {
+  module_out_path = module_output_path
+  sources = [ "purgeableashmem_test.cpp" ]
   deps = purgeable_deps
   if (is_standard_system) {
     external_deps = purgeable_external_deps

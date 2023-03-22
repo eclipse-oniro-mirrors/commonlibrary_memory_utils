@@ -16,7 +16,7 @@
 #ifndef OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PM_SMARTPTR_UTIL_H
 #define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PM_SMARTPTR_UTIL_H
 
-#include "../../common/include/pm_ptr_util.h"
+#include "pm_ptr_util.h"
 
 namespace OHOS {
 namespace PurgeableMem {
