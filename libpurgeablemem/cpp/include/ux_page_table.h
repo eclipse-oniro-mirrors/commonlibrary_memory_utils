@@ -18,7 +18,7 @@
 
 #include <string> /* std::string */
 
-#include "../../common/include/ux_page_table_c.h" /* UxPageTableStruct */
+#include "ux_page_table_c.h" /* UxPageTableStruct */
 
 namespace OHOS {
 namespace PurgeableMem {

@@ -19,10 +19,10 @@
 #include <stdio.h> /* FILE */
 
 #include "securec.h"
-#include "../../common/include/pm_ptr_util.h"
-#include "../../common/include/pm_util.h"
-#include "../../common/include/pm_state_c.h"
-#include "../../common/include/ux_page_table_c.h"
+#include "pm_ptr_util.h"
+#include "pm_util.h"
+#include "pm_state_c.h"
+#include "ux_page_table_c.h"
 #include "purgeable_mem_builder_c.h"
 #include "purgeable_mem_c.h"
 
