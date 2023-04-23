@@ -26,7 +26,26 @@
           "//commonlibrary/memory_utils/libdmabufheap:libdmabufheap",
           "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem"
       ],
-      "inner_kits": [],
+      "inner_kits": [
+        {
+          "name": "//commonlibrary/memory_utils/libdmabufheap:libdmabufheap",
+          "header": {
+            "header_files": [
+              "dmabuf_alloc.h"
+            ],
+            "header_base": "//commonlibrary/memory_utils/libdmabufheap/include"
+          }
+        },
+        {
+          "name": "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem",
+          "header": {
+            "header_files": [
+              "purgeable_mem_c.h"
+            ],
+            "header_base": "//commonlibrary/memory_utils/libpurgeablemem/c/include"
+          }
+        }
+      ],
       "test": [
           "//commonlibrary/memory_utils/libdmabufheap/test:unittest",
           "//commonlibrary/memory_utils/libpurgeablemem/test:libpurgeablemem_test"

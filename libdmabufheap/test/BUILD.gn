@@ -18,8 +18,10 @@ module_output_path = "libdmabufheap/"
 ohos_unittest("DmabufAllocTest") {
   module_out_path = module_output_path
   sources = [ "unittest/libdmabufheap/dmabuf_alloc_test.cpp" ]
-  deps = [ "//commonlibrary/memory_utils/libdmabufheap:libdmabufheap" ]
-  external_deps = [ "c_utils:utils" ]
+  external_deps = [
+    "c_utils:utils",
+    "memory_utils:libdmabufheap",
+  ]
 }
 
 group("unittest") {
