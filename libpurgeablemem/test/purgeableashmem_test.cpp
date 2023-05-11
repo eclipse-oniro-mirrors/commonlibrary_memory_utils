@@ -19,6 +19,7 @@
 #include <memory>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
+#include <thread>
 #include <unistd.h>
 
 #include "ashmem.h"
@@ -158,7 +159,7 @@ HWTEST_F(PurgeableAshmemTest, KernelInterfaceTest, TestSize.Level1)
 {
     size_t size = 4096 * 100;
     int fd = AshmemCreate("Purgeable Ashmem", size);
-    EXPECT_LT(fd, 0);
+    ASSERT_GT(fd, 0);
     if (AshmemSetProt(fd, PROT_READ | PROT_WRITE) < 0) {
         close(fd);
         return;
@@ -256,7 +257,7 @@ HWTEST_F(PurgeableAshmemTest, ReadTest, TestSize.Level1)
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
     LoopReclaimPurgeable(1);
 
     int times = 0;
@@ -280,7 +281,7 @@ HWTEST_F(PurgeableAshmemTest, WriteTest, TestSize.Level1)
     const char alphabet[] = "CCCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
     LoopReclaimPurgeable(1);
 
     std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
@@ -309,7 +310,7 @@ HWTEST_F(PurgeableAshmemTest, ReadWriteTest, TestSize.Level1)
     const char alphabet[] = "DDDDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
 
     LoopReclaimPurgeable(1);
     LoopPrintAlphabet(pobj, 1);
@@ -347,7 +348,7 @@ HWTEST_F(PurgeableAshmemTest, MutiPageReadTest, TestSize.Level1)
     alphabet[4097] = 0;
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(4098, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
 
     LoopReclaimPurgeable(1);
 
@@ -377,7 +378,7 @@ HWTEST_F(PurgeableAshmemTest, MutiPageWriteTest, TestSize.Level1)
     alphabet[4097] = 0;
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(4098, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
 
     LoopReclaimPurgeable(1);
 
@@ -412,7 +413,7 @@ HWTEST_F(PurgeableAshmemTest, MutiPageReadWriteTest, TestSize.Level1)
     alphabet[4097] = 0;
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(4098, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
     LoopReclaimPurgeable(1);
     LoopPrintAlphabet(pobj, 1);
 
@@ -449,8 +450,8 @@ HWTEST_F(PurgeableAshmemTest, MutiMorePageReadWriteTest, TestSize.Level1)
     }
     alphabet[size - 1] = 0;
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
-    PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(4098, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(size, std::move(builder));
+    ASSERT_NE(pobj, nullptr);
 
     LoopReclaimPurgeable(1);
     LoopPrintAlphabet(pobj, 1);
@@ -491,7 +492,7 @@ HWTEST_F(PurgeableAshmemTest, StableMutiMorePageReadWriteTest, TestSize.Level1)
     alphabet[size - 1] = 0;
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestBigDataBuilder>('A');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(size, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
 
     std::thread reclaimThread(LoopReclaimPurgeable, 10);
     std::thread readThread(LoopPrintAlphabet, pobj, 10);
@@ -527,7 +528,7 @@ HWTEST_F(PurgeableAshmemTest, InvalidInputSizeTest, TestSize.Level1)
 {
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(0, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    ASSERT_NE(pobj, nullptr);
     bool ret = pobj->BeginRead();
     if (ret) {
         pobj->EndRead();
@@ -539,8 +540,8 @@ HWTEST_F(PurgeableAshmemTest, InvalidInputSizeTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, InvalidInputBuilderTest, TestSize.Level1)
 {
-    PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
-    EXPECT_EQ(pobj, nullptr);
+    PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, nullptr);
+    ASSERT_NE(pobj, nullptr);
     bool ret = pobj->BeginRead();
     if (ret) {
         pobj->EndRead();
