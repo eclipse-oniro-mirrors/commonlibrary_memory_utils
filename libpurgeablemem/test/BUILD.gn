@@ -66,5 +66,6 @@ group("libpurgeablemem_test") {
   deps = [
     ":purgeable_c_test",
     ":purgeable_cpp_test",
+    ":purgeableashmem_test",
   ]
 }
