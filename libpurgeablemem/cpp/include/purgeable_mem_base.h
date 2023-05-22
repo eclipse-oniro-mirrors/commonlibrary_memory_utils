@@ -101,10 +101,10 @@ public:
 
 protected:
     void *dataPtr_ = nullptr;
-    size_t dataSizeInput_;
+    size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
     std::shared_mutex rwlock_;
-    unsigned int buildDataCount_;
+    unsigned int buildDataCount_ = 0;
     bool BuildContent_();
     bool IfNeedRebuild_();
     virtual bool Pin_();
