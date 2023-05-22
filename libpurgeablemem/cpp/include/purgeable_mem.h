@@ -38,7 +38,7 @@ protected:
     bool Pin_() override;
     bool Unpin_() override;
     bool IsPurged_() override;
-    bool CreatePurgeableData_() override;
+    bool CreatePurgeableData_();
     void AfterRebuildSucc_() override;
     std::string ToString_() const override;
 };

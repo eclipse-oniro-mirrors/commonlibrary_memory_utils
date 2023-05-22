@@ -110,7 +110,6 @@ protected:
     virtual bool Pin_();
     virtual bool Unpin_();
     virtual bool IsPurged_();
-    virtual bool CreatePurgeableData_();
     virtual void AfterRebuildSucc_();
     virtual std::string ToString_() const;
 };
