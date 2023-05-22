@@ -107,7 +107,7 @@ void PurgeableMemBase::EndRead()
 bool PurgeableMemBase::BeginWrite()
 {
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
-    if (dataPtr_ == nullptr && !CreatePurgeableData_()) {
+    if (dataPtr_ == nullptr) {
         return false;
     }
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginWrite", return false);
@@ -209,11 +209,6 @@ bool PurgeableMemBase::BuildContent_()
         buildDataCount_++;
     }
     return succ;
-}
-
-bool PurgeableMemBase::CreatePurgeableData_()
-{
-    return false;
 }
 
 void PurgeableMemBase::ResizeData(size_t newSize)
