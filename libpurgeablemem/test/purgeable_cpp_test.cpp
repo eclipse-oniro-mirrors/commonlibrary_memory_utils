@@ -381,7 +381,7 @@ HWTEST_F(PurgeableCppTest, MutiPageReadWriteTest, TestSize.Level1)
 HWTEST_F(PurgeableCppTest, MutiMorePageReadWriteTest, TestSize.Level1)
 {
     size_t size = 5 * 1024 * 1024;
-    char *alphabet = (char *)malloc(size);
+    char *alphabet = static_cast<char *>(malloc(size));
     size_t len = 0;
     for (char ch = 'D'; len < size;) {
         alphabet[len++] = ch;

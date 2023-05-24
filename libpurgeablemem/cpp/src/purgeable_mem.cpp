@@ -83,8 +83,9 @@ bool PurgeableMem::CreatePurgeableData_()
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     pageTable_ = nullptr;
     size_t size = RoundUp_(dataSizeInput_, PAGE_SIZE);
-    int type = MAP_ANONYMOUS;
-    type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    unsigned int utype = MAP_ANONYMOUS;
+    utype |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    int type = static_cast<int>(utype);
 
     dataPtr_ = mmap(nullptr, size, PROT_READ | PROT_WRITE, type, -1, 0);
     if (dataPtr_ == MAP_FAILED) {
