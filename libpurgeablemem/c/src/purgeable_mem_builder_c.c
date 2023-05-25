@@ -19,6 +19,7 @@
 
 #include "hilog/log_c.h"
 #include "pm_ptr_util.h"
+#include "pm_log_c.h"
 #include "purgeable_mem_builder_c.h"
 
 #undef LOG_TAG
@@ -42,7 +43,7 @@ struct PurgMemBuilder *PurgMemBuilderCreate(PurgMemBuilderFunc func, void *param
     struct PurgMemBuilder *builder = NULL;
     builder = (struct PurgMemBuilder *)malloc(sizeof(struct PurgMemBuilder));
     if (!builder) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: malloc struct PurgMemBuilder failed", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: malloc struct PurgMemBuilder failed", __func__);
         return NULL;
     }
     builder->Build = func;
@@ -85,11 +86,11 @@ bool PurgMemBuilderAppendFunc(struct PurgMemBuilder *builder, PurgMemBuilderFunc
 bool PurgMemBuilderBuildAll(struct PurgMemBuilder *builder, void *data, size_t size)
 {
     if (!(builder->Build)) {
-        HILOG_ERROR(LOG_CORE, "builder has no Build(), %{public}s", builder->name);
+        PM_HILOG_ERROR_C(LOG_CORE, "builder has no Build(), %{public}s", builder->name);
         return true;
     }
     if (!(builder->Build(data, size, builder->param))) {
-        HILOG_ERROR(LOG_CORE, "build data failed, name %{public}s", builder->name ?: "NULL");
+        PM_HILOG_ERROR_C(LOG_CORE, "build data failed, name %{public}s", builder->name ?: "NULL");
         return false;
     }
     if (!(builder->nextBuilder)) {

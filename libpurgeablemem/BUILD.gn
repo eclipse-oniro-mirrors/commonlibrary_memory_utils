@@ -12,12 +12,14 @@
 # limitations under the License.
 
 import("//build/ohos.gni")
+import("//build/ohos/ndk/ndk.gni")
 
 config("libpurgeable_config") {
   include_dirs = [
     "c/include",
     "common/include",
     "cpp/include",
+    "interfaces/kits/c",
   ]
   cflags_cc = [ "-fexceptions" ]
 }
@@ -26,6 +28,7 @@ ohos_shared_library("libpurgeablemem") {
   sources = [
     "c/src/purgeable_mem_builder_c.c",
     "c/src/purgeable_mem_c.c",
+    "c/src/purgeable_memory.c",
     "common/src/pm_state_c.c",
     "common/src/ux_page_table_c.c",
     "cpp/src/purgeable_ashmem.cpp",
@@ -40,6 +43,21 @@ ohos_shared_library("libpurgeablemem") {
     "hiviewdfx_hilog_native:libhilog",
   ]
   public_configs = [ ":libpurgeable_config" ]
+  subsystem_name = "commonlibrary"
+  part_name = "memory_utils"
+}
+
+ohos_shared_library("purgeable_memory_ndk") {
+  include_dirs = [ "interfaces/kits/c" ]
+
+  sources = [ "c/src/purgeable_memory.c" ]
+  deps = [ ":libpurgeablemem" ]
+  external_deps = [
+    "c_utils:utils",
+    "hiviewdfx_hilog_native:libhilog",
+  ]
+
+  relative_install_dir = "ndk"
   subsystem_name = "commonlibrary"
   part_name = "memory_utils"
 }

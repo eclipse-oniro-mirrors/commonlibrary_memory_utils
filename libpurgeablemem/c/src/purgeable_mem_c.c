@@ -24,6 +24,7 @@
 #include "pm_state_c.h"
 #include "ux_page_table_c.h"
 #include "purgeable_mem_builder_c.h"
+#include "pm_log_c.h"
 #include "purgeable_mem_c.h"
 
 #undef LOG_TAG
@@ -40,7 +41,7 @@ struct PurgMem {
 
 static inline void LogPurgMemInfo_(struct PurgMem *obj)
 {
-    HILOG_INFO(LOG_CORE, "purgMemObj(%{public}lx) dataPtr(%{public}lx) dataSizeInput(%{public}zu)"
+    PM_HILOG_INFO_C(LOG_CORE, "purgMemObj(%{public}lx) dataPtr(%{public}lx) dataSizeInput(%{public}zu)"
         " builderPtr(%{public}lx) uxpt(%{public}lx)",
         (unsigned long)obj, (unsigned long)(obj->dataPtr), obj->dataSizeInput,
         (unsigned long)(obj->builder), (unsigned long)(obj->uxPageTable));
@@ -63,7 +64,7 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
     struct PurgMem *pugObj = NULL;
     pugObj = (struct PurgMem *)malloc(sizeof(struct PurgMem));
     if (!pugObj) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: malloc struct PurgMem fail", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: malloc struct PurgMem fail", __func__);
         return NULL;
     }
     size_t size = RoundUp_(len, PAGE_SIZE);
@@ -71,31 +72,32 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
     type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
     pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, type, -1, 0);
     if (pugObj->dataPtr == MAP_FAILED) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
         pugObj->dataPtr = NULL;
         goto free_pug_obj;
     }
 
     pugObj->uxPageTable = (UxPageTableStruct *)malloc(UxPageTableSize());
     if (!(pugObj->uxPageTable)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: malloc UxPageTableStruct fail", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: malloc UxPageTableStruct fail", __func__);
         goto unmap_data;
     }
     PMState err = InitUxPageTable(pugObj->uxPageTable, (uint64_t)(pugObj->dataPtr), size); /* dataPtr is aligned */
     if (err != PM_OK) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: InitUxPageTable fail, %{public}s", __func__, GetPMStateName(err));
+        PM_HILOG_ERROR_C(LOG_CORE,
+            "%{public}s: InitUxPageTable fail, %{public}s", __func__, GetPMStateName(err));
         goto free_uxpt;
     }
     int lockInitRet = pthread_rwlock_init(&(pugObj->rwlock), NULL);
     if (lockInitRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: pthread_rwlock_init fail, %{public}d", __func__, lockInitRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: pthread_rwlock_init fail, %{public}d", __func__, lockInitRet);
         goto deinit_upt;
     }
     pugObj->builder = builder;
     pugObj->dataSizeInput = len;
     pugObj->buildDataCount = 0;
 
-    HILOG_INFO(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
     LogPurgMemInfo_(pugObj);
     return pugObj;
 
@@ -117,7 +119,7 @@ free_pug_obj:
 struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara)
 {
     if (len == 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: input len 0", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: input len 0", __func__);
         return NULL;
     }
     /* a PurgMemObj must have builder */
@@ -133,9 +135,9 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
     }
 
     /* append func fail meas create builder failed */
-    HILOG_ERROR(LOG_CORE, "%{public}s: append mod func fail", __func__);
+    PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: append mod func fail", __func__);
     if (!PurgMemDestroy(purgMemObj)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: destroy PurgMem fail after append modFunc fail", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: destroy PurgMem fail after append modFunc fail", __func__);
     }
     return NULL;
 }
@@ -143,19 +145,19 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
 bool PurgMemDestroy(struct PurgMem *purgObj)
 {
     IF_NULL_LOG_ACTION(purgObj, "input is NULL", return true);
-    HILOG_INFO(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
     LogPurgMemInfo_(purgObj);
 
     PMState err = PM_OK;
     /* destroy rwlock */
     int ret = pthread_rwlock_destroy(&(purgObj->rwlock));
     if (ret != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: pthread_rwlock_destroy fail, %{public}d", __func__, ret);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: pthread_rwlock_destroy fail, %{public}d", __func__, ret);
     }
     /* destroy builder */
     if (purgObj->builder) {
         if (!PurgMemBuilderDestroy(purgObj->builder)) {
-            HILOG_ERROR(LOG_CORE, "%{public}s: PurgMemBuilderDestroy fail", __func__);
+            PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: PurgMemBuilderDestroy fail", __func__);
             err = PMB_DESTORY_FAIL;
         } else {
             purgObj->builder = NULL;
@@ -165,12 +167,12 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     if (purgObj->dataPtr) {
         size_t size = RoundUp_(purgObj->dataSizeInput, PAGE_SIZE);
         if (munmap(purgObj->dataPtr, size) != 0) {
-            HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
+            PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
             err = PM_UNMAP_PURG_FAIL;
         } else {
             /* double check munmap result: if uxpte is set to no_present */
             if (UxpteIsEnabled() && !IsPurged_(purgObj)) {
-                HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
+                PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
                 err = PM_UXPT_PRESENT_DATA_PURGED;
             }
             purgObj->dataPtr = NULL;
@@ -180,7 +182,8 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     if (purgObj->uxPageTable) {
         PMState deinitRet = DeinitUxPageTable(purgObj->uxPageTable);
         if (deinitRet != PM_OK) {
-            HILOG_ERROR(LOG_CORE, "%{public}s: deinit upt fail, %{public}s", __func__, GetPMStateName(deinitRet));
+            PM_HILOG_ERROR_C(LOG_CORE,
+                "%{public}s: deinit upt fail, %{public}s", __func__, GetPMStateName(deinitRet));
             err = deinitRet;
         } else {
             free(purgObj->uxPageTable);
@@ -191,10 +194,10 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     if (err == PM_OK) {
         free(purgObj);
         purgObj = NULL; /* set input para NULL to avoid UAF */
-        HILOG_ERROR(LOG_CORE, "%{public}s: succ", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: succ", __func__);
         return true;
     }
-    HILOG_ERROR(LOG_CORE, "%{public}s: fail, %{public}s", __func__, GetPMStateName(err));
+    PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: fail, %{public}s", __func__, GetPMStateName(err));
     return false;
 }
 
@@ -213,7 +216,7 @@ static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
     bool succ = false;
     /* clear content before rebuild */
     if (memset_s(purgObj->dataPtr, RoundUp_(purgObj->dataSizeInput, PAGE_SIZE), 0, purgObj->dataSizeInput) != EOK) {
-        HILOG_ERROR(LOG_CORE, "%{public}s, clear content fail", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s, clear content fail", __func__);
         return succ;
     }
     /* @purgObj->builder is not NULL since it is checked by IsPurgMemPtrValid_() before */
@@ -228,18 +231,19 @@ static PMState TryBeginRead_(struct PurgMem *purgObj)
 {
     int rwlockRet = pthread_rwlock_rdlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: rdlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: rdlock fail. %{public}d", __func__, rwlockRet);
         return PM_LOCK_READ_FAIL;
     }
 
     if (!IsPurged_(purgObj)) {
-        HILOG_INFO(LOG_CORE, "%{public}s: not purged, return true. MAP_PUG=0x%{public}x", __func__, MAP_PURGEABLE);
+        PM_HILOG_INFO_C(LOG_CORE,
+            "%{public}s: not purged, return true. MAP_PUG=0x%{public}x", __func__, MAP_PURGEABLE);
         return PM_DATA_NO_PURGED;
     }
 
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: rd unlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: rd unlock fail. %{public}d", __func__, rwlockRet);
         return PM_UNLOCK_READ_FAIL;
     }
 
@@ -251,18 +255,19 @@ static PMState BeginReadBuildData_(struct PurgMem *purgObj)
     bool rebuildRet = false;
     int rwlockRet = pthread_rwlock_wrlock(&(purgObj->rwlock));
     if (rwlockRet) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
         return PM_LOCK_WRITE_FAIL;
     }
 
     if (IsPurged_(purgObj)) {
         rebuildRet = PurgMemBuildData_(purgObj);
-        HILOG_ERROR(LOG_CORE, "%{public}s: purged, after built %{public}s", __func__, rebuildRet ? "succ" : "fail");
+        PM_HILOG_ERROR_C(LOG_CORE,
+            "%{public}s: purged, after built %{public}s", __func__, rebuildRet ? "succ" : "fail");
     }
 
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
         return PM_UNLOCK_WRITE_FAIL;
     }
 
@@ -276,10 +281,10 @@ static PMState BeginReadBuildData_(struct PurgMem *purgObj)
 bool PurgMemBeginRead(struct PurgMem *purgObj)
 {
     if (!IsPurgMemPtrValid_(purgObj)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: para is invalid", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return false;
     }
-    HILOG_INFO(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
     LogPurgMemInfo_(purgObj);
     bool ret = false;
     PMState err = PM_OK;
@@ -301,7 +306,7 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
     }
 
     if (!ret) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, UxptePut.", __func__, GetPMStateName(err));
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: %{public}s, UxptePut.", __func__, GetPMStateName(err));
         UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     }
     return ret;
@@ -310,10 +315,10 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
 bool PurgMemBeginWrite(struct PurgMem *purgObj)
 {
     if (!IsPurgMemPtrValid_(purgObj)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: para is invalid", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return false;
     }
-    HILOG_INFO(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
     LogPurgMemInfo_(purgObj);
     int rwlockRet = 0;
     bool rebuildRet = false;
@@ -323,7 +328,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
 
     rwlockRet = pthread_rwlock_wrlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
         err = PM_LOCK_WRITE_FAIL;
         goto uxpte_put;
     }
@@ -334,7 +339,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
 
     /* data is purged */
     rebuildRet = PurgMemBuildData_(purgObj);
-    HILOG_INFO(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, rebuildRet ? "succ" : "fail");
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, rebuildRet ? "succ" : "fail");
     if (rebuildRet) {
         goto succ;
     }
@@ -342,11 +347,11 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     err = PMB_BUILD_ALL_FAIL;
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
     }
 
 uxpte_put:
-    HILOG_ERROR(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, GetPMStateName(err));
+    PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, GetPMStateName(err));
     UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     return false;
 succ:
@@ -356,13 +361,13 @@ succ:
 static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
 {
     if (!IsPurgMemPtrValid_(purgObj)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: para is invalid", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return;
     }
     int rwlockRet = 0;
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: unlock fail. %{public}d", __func__, rwlockRet);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: unlock fail. %{public}d", __func__, rwlockRet);
     }
     UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 }
@@ -380,7 +385,7 @@ void PurgMemEndWrite(struct PurgMem *purgObj)
 void *PurgMemGetContent(struct PurgMem *purgObj)
 {
     if (!IsPurgMemPtrValid_(purgObj)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: para is invalid", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return NULL;
     }
     return purgObj->dataPtr;
@@ -389,7 +394,7 @@ void *PurgMemGetContent(struct PurgMem *purgObj)
 size_t PurgMemGetContentSize(struct PurgMem *purgObj)
 {
     if (!IsPurgMemPtrValid_(purgObj)) {
-        HILOG_ERROR(LOG_CORE, "%{public}s: para is invalid", __func__);
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return 0;
     }
     return purgObj->dataSizeInput;
@@ -418,7 +423,7 @@ static bool IsPurged_(struct PurgMem *purgObj)
 {
     /* first access, return true means purged */
     if (purgObj->buildDataCount == 0) {
-        HILOG_INFO(LOG_CORE, "%{public}s, has never built, return true", __func__);
+        PM_HILOG_INFO_C(LOG_CORE, "%{public}s, has never built, return true", __func__);
         return true;
     }
     return !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
