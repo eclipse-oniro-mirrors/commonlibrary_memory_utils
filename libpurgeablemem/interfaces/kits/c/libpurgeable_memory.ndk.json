@@ -1,0 +1,11 @@
+[
+    { "name": "OH_PurgeableMemory_Create" },
+    { "name": "OH_PurgeableMemory_Destroy" },
+    { "name": "OH_PurgeableMemory_BeginRead" },
+    { "name": "OH_PurgeableMemory_EndRead" },
+    { "name": "OH_PurgeableMemory_BeginWrite" },
+    { "name": "OH_PurgeableMemory_EndWrite" },
+    { "name": "OH_PurgeableMemory_GetContent" },
+    { "name": "OH_PurgeableMemory_ContentSize" },
+    { "name": "OH_PurgeableMemory_AppendModify" }
+]
