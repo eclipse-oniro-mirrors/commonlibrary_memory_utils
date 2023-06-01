@@ -29,7 +29,8 @@
  *
  * @brief provides memory management capabilities of purgeable memory.
  *
- * provides features include create, begin read ,end read, begin write, end write, rebuild, and so on
+ * provides features include create, begin read ,end read, begin write, end write, rebuild, and so on.
+ * when using, it is necessary to link libpurgeable_memory_ndk.z.so
  *
  * @since 10
  * @version 1.0
