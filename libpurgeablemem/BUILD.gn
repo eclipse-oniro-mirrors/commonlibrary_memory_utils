@@ -35,12 +35,16 @@ ohos_shared_library("libpurgeablemem") {
     "cpp/src/purgeable_mem.cpp",
     "cpp/src/purgeable_mem_base.cpp",
     "cpp/src/purgeable_mem_builder.cpp",
+    "cpp/src/purgeable_resource_manager.cpp",
     "cpp/src/ux_page_table.cpp",
   ]
   include_dirs = [ "include" ]
   external_deps = [
     "c_utils:utils",
+    "hitrace_native:hitrace_meter",
     "hiviewdfx_hilog_native:libhilog",
+    "init:libbegetutil",
+    "ipc:ipc_core",
   ]
   public_configs = [ ":libpurgeable_config" ]
   subsystem_name = "commonlibrary"

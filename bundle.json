@@ -43,9 +43,15 @@
           "name": "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem",
           "header": {
             "header_files": [
-              "purgeable_mem_c.h"
+              "pm_log.h",
+              "pm_smartptr_util.h",
+              "purgeable_ashmem.h",
+              "purgeable_mem.h",
+              "purgeable_mem_base.h",
+              "purgeable_mem_builder.h",
+              "ux_page_table.h"
             ],
-            "header_base": "//commonlibrary/memory_utils/libpurgeablemem/c/include"
+            "header_base": "//commonlibrary/memory_utils/libpurgeablemem/cpp/include"
           }
         }
       ],
