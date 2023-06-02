@@ -52,17 +52,17 @@ PurgeableMem::PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder>
 
     CreatePurgeableData_();
     builder_ = std::move(builder);
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString().c_str());
 }
 
 PurgeableMem::~PurgeableMem()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     if (dataPtr_) {
         if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
         } else {
-            if (UxpteIsEnabled() && !IsPurged_()) {
+            if (UxpteIsEnabled() && !IsPurged()) {
                 PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
             }
             dataPtr_ = nullptr;
@@ -72,7 +72,7 @@ PurgeableMem::~PurgeableMem()
     pageTable_.reset();
 }
 
-bool PurgeableMem::IsPurged_()
+bool PurgeableMem::IsPurged()
 {
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
     return !(pageTable_->CheckPresent((uint64_t)dataPtr_, dataSizeInput_));
@@ -97,22 +97,27 @@ bool PurgeableMem::CreatePurgeableData_()
     return true;
 }
 
-bool PurgeableMem::Pin_()
+bool PurgeableMem::Pin()
 {
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
     pageTable_->GetUxpte((uint64_t)dataPtr_, dataSizeInput_);
     return true;
 }
 
-bool PurgeableMem::Unpin_()
+bool PurgeableMem::Unpin()
 {
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
     pageTable_->PutUxpte((uint64_t)dataPtr_, dataSizeInput_);
     return true;
 }
 
-void PurgeableMem::AfterRebuildSucc_()
+void PurgeableMem::AfterRebuildSucc()
 {
+}
+
+int PurgeableMem::GetPinStatus() const
+{
+    return 0;
 }
 
 void PurgeableMem::ResizeData(size_t newSize)
@@ -131,7 +136,7 @@ void PurgeableMem::ResizeData(size_t newSize)
     CreatePurgeableData_();
 }
 
-inline std::string PurgeableMem::ToString_() const
+inline std::string PurgeableMem::ToString() const
 {
     std::string dataptrStr = dataPtr_ ? std::to_string((unsigned long long)dataPtr_) : "0";
     std::string pageTableStr = pageTable_ ? pageTable_->ToString() : "0";

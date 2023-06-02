@@ -49,6 +49,10 @@ void LruCache::Insert(std::shared_ptr<PurgeableMemBase> key)
     resourcePtrList_.emplace_front(key);
     positionMap_.emplace(key, resourcePtrList_.begin());
     if (static_cast<int32_t>(resourcePtrList_.size()) > lruCacheCapacity_) {
+        auto popResource = resourcePtrList_.back();
+        if (popResource->GetPinStatus() == 0) {
+            popResource->Pin();
+        }
         positionMap_.erase(resourcePtrList_.back());
         resourcePtrList_.pop_back();
     }
@@ -63,6 +67,10 @@ void LruCache::Erase(std::shared_ptr<PurgeableMemBase> key)
     auto resourcePtrIter = positionMap_.find(key);
     if (resourcePtrIter == positionMap_.end()) {
         return;
+    }
+
+    if (key->GetPinStatus() == 0) {
+        key->Pin();
     }
 
     resourcePtrList_.erase(resourcePtrIter->second);
@@ -240,7 +248,7 @@ void PurgeableResourceManager::ShowLruCache() const
     for (auto &resourcePtr : resourcePtrList) {
         cnt++;
         PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] ShowLruCache (resourcePtr: 0x%{public}lx, "
-            "%{public}zu th, list size: %{public}zu)", (long)resourcePtr.get(), cnt, lruCache_.Size());
+            "%{public}d th, list size: %{public}zu)", (long)resourcePtr.get(), cnt, lruCache_.Size());
     }
 }
 

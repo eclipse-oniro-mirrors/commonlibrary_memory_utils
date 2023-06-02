@@ -50,10 +50,10 @@ bool PurgeableMemBase::BeginRead()
     bool succ = false;
     bool ret = false;
 
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginRead", return false);
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginRead", return false);
-    Pin_();
+    Pin();
     PMState err = PM_OK;
     while (true) {
         try {
@@ -79,7 +79,7 @@ bool PurgeableMemBase::BeginRead()
         if (IfNeedRebuild_()) {
             succ = BuildContent_();
             if (succ) {
-                AfterRebuildSucc_();
+                AfterRebuildSucc();
             }
             PM_HILOG_DEBUG(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, succ ? "succ" : "fail");
         }
@@ -92,28 +92,28 @@ bool PurgeableMemBase::BeginRead()
 
     if (!ret) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, GetPMStateName(err));
-        Unpin_();
+        Unpin();
     }
     return ret;
 }
 
 void PurgeableMemBase::EndRead()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     rwlock_.unlock_shared();
-    Unpin_();
+    Unpin();
 }
 
 bool PurgeableMemBase::BeginWrite()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     if (dataPtr_ == nullptr) {
         return false;
     }
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginWrite", return false);
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginWrite", return false);
 
-    Pin_();
+    Pin();
     PMState err = PM_OK;
     do {
         try {
@@ -129,7 +129,7 @@ bool PurgeableMemBase::BeginWrite()
         /* data purged, rebuild it */
         if (BuildContent_()) {
             /* data rebuild succ, return true */
-            AfterRebuildSucc_();
+            AfterRebuildSucc();
             break;
         }
         err = PMB_BUILD_ALL_FAIL;
@@ -141,15 +141,15 @@ bool PurgeableMemBase::BeginWrite()
 
     rwlock_.unlock();
     PM_HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, GetPMStateName(err));
-    Unpin_();
+    Unpin();
     return false;
 }
 
 void PurgeableMemBase::EndWrite()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     rwlock_.unlock();
-    Unpin_();
+    Unpin();
 }
 
 bool PurgeableMemBase::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilder> modifier)
@@ -170,13 +170,13 @@ bool PurgeableMemBase::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilde
 
 bool PurgeableMemBase::IfNeedRebuild_()
 {
-    if (buildDataCount_ == 0 || IsPurged_()) {
+    if (buildDataCount_ == 0 || IsPurged()) {
         return true;
     }
     return false;
 }
 
-void PurgeableMemBase::AfterRebuildSucc_()
+void PurgeableMemBase::AfterRebuildSucc()
 {
 }
 
@@ -190,7 +190,7 @@ size_t PurgeableMemBase::GetContentSize()
     return dataSizeInput_;
 }
 
-bool PurgeableMemBase::IsPurged_()
+bool PurgeableMemBase::IsPurged()
 {
     return false;
 }
@@ -215,19 +215,31 @@ void PurgeableMemBase::ResizeData(size_t newSize)
 {
 }
 
-bool PurgeableMemBase::Pin_()
+bool PurgeableMemBase::Pin()
 {
     return false;
 }
 
-bool PurgeableMemBase::Unpin_()
+bool PurgeableMemBase::Unpin()
 {
     return false;
 }
 
-inline std::string PurgeableMemBase::ToString_() const
+int PurgeableMemBase::GetPinStatus() const
+{
+    return 0;
+}
+
+inline std::string PurgeableMemBase::ToString() const
 {
     return "";
+}
+
+void PurgeableMemBase::SetRebuildSuccessCallback(std::function<void()> &callback)
+{
+    if (builder_) {
+        builder_->SetRebuildSuccessCallback(callback);
+    }
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

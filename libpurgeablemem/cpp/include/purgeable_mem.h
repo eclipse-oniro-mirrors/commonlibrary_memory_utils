@@ -35,12 +35,13 @@ public:
 
 protected:
     std::unique_ptr<UxPageTable> pageTable_ = nullptr;
-    bool Pin_() override;
-    bool Unpin_() override;
-    bool IsPurged_() override;
+    bool Pin() override;
+    bool Unpin() override;
+    bool IsPurged() override;
+    int GetPinStatus() const override;
     bool CreatePurgeableData_();
-    void AfterRebuildSucc_() override;
-    std::string ToString_() const override;
+    void AfterRebuildSucc() override;
+    std::string ToString() const override;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */
