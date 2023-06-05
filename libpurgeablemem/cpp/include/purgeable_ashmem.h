@@ -50,17 +50,20 @@ public:
     ~PurgeableAshMem() override;
     int GetAshmemFd();
     void ResizeData(size_t newSize) override;
-    void ChangeAshmemData(size_t size, int fd, void *data);
+    bool ChangeAshmemData(size_t size, int fd, void *data);
+
 protected:
     int ashmemFd_;
     int isSupport_;
+    bool isChange_;
     ashmem_pin pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
-    bool Pin_() override;
-    bool Unpin_() override;
-    bool IsPurged_() override;
+    bool Pin() override;
+    bool Unpin() override;
+    bool IsPurged() override;
+    int GetPinStatus() const override;
     bool CreatePurgeableData_();
-    void AfterRebuildSucc_() override;
-    std::string ToString_() const override;
+    void AfterRebuildSucc() override;
+    std::string ToString() const override;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

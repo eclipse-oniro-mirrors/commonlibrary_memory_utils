@@ -90,7 +90,7 @@ public:
      * ResizeData: resize size of the PurgeableMem obj.
      */
     virtual void ResizeData(size_t newSize);
-
+    void SetRebuildSuccessCallback(std::function<void()> &callback);
 
     PurgeableMemBase();
     virtual ~PurgeableMemBase();
@@ -107,11 +107,13 @@ protected:
     unsigned int buildDataCount_ = 0;
     bool BuildContent_();
     bool IfNeedRebuild_();
-    virtual bool Pin_();
-    virtual bool Unpin_();
-    virtual bool IsPurged_();
-    virtual void AfterRebuildSucc_();
-    virtual std::string ToString_() const;
+    virtual bool Pin();
+    virtual bool Unpin();
+    virtual bool IsPurged();
+    virtual int GetPinStatus() const;
+    virtual void AfterRebuildSucc();
+    virtual std::string ToString() const;
+    friend class LruCache;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

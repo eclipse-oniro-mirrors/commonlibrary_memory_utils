@@ -17,6 +17,7 @@
 #define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PURGEABLE_MEM_BUILDER_H
 
 #include <memory> /* unique_ptr */
+#include <functional>
 
 namespace OHOS {
 namespace PurgeableMem {
@@ -37,7 +38,20 @@ public:
      */
     virtual bool Build(void *data, size_t size) = 0;
 
+    void SetRebuildSuccessCallback(std::function<void()> &callback)
+    {
+        rebuildSuccessCallback_ = callback;
+    }
+
+    void DoRebuildSuccessCallback()
+    {
+        if (rebuildSuccessCallback_) {
+            rebuildSuccessCallback_();
+        }
+    }
+
 private:
+    std::function<void()> rebuildSuccessCallback_ = nullptr;
     std::unique_ptr<PurgeableMemBuilder> nextBuilder_ = nullptr;
 
     /* Only called by its friend */

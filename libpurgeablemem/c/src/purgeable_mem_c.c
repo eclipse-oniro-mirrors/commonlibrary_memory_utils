@@ -56,7 +56,7 @@ static inline size_t RoundUp_(size_t val, size_t align)
 }
 
 static bool IsPurgMemPtrValid_(struct PurgMem *purgObj);
-static bool IsPurged_(struct PurgMem *purgObj);
+static bool IsPurged(struct PurgMem *purgObj);
 
 static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder)
 {
@@ -171,7 +171,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
             err = PM_UNMAP_PURG_FAIL;
         } else {
             /* double check munmap result: if uxpte is set to no_present */
-            if (UxpteIsEnabled() && !IsPurged_(purgObj)) {
+            if (UxpteIsEnabled() && !IsPurged(purgObj)) {
                 PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
                 err = PM_UXPT_PRESENT_DATA_PURGED;
             }
@@ -235,7 +235,7 @@ static PMState TryBeginRead_(struct PurgMem *purgObj)
         return PM_LOCK_READ_FAIL;
     }
 
-    if (!IsPurged_(purgObj)) {
+    if (!IsPurged(purgObj)) {
         PM_HILOG_INFO_C(LOG_CORE,
             "%{public}s: not purged, return true. MAP_PUG=0x%{public}x", __func__, MAP_PURGEABLE);
         return PM_DATA_NO_PURGED;
@@ -259,7 +259,7 @@ static PMState BeginReadBuildData_(struct PurgMem *purgObj)
         return PM_LOCK_WRITE_FAIL;
     }
 
-    if (IsPurged_(purgObj)) {
+    if (IsPurged(purgObj)) {
         rebuildRet = PurgMemBuildData_(purgObj);
         PM_HILOG_ERROR_C(LOG_CORE,
             "%{public}s: purged, after built %{public}s", __func__, rebuildRet ? "succ" : "fail");
@@ -333,7 +333,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
         goto uxpte_put;
     }
 
-    if (!IsPurged_(purgObj)) {
+    if (!IsPurged(purgObj)) {
         goto succ;
     }
 
@@ -419,7 +419,7 @@ bool PurgMemAppendModify(struct PurgMem *purgObj, PurgMemModifyFunc func, void *
     return PurgMemBuilderAppendBuilder(purgObj->builder, builder);
 }
 
-static bool IsPurged_(struct PurgMem *purgObj)
+static bool IsPurged(struct PurgMem *purgObj)
 {
     /* first access, return true means purged */
     if (purgObj->buildDataCount == 0) {

@@ -1,0 +1,45 @@
+# Copyright (c) 2023 Huawei Device Co., Ltd.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/ohos.gni")
+import("//commonlibrary/memory_utils/purgeable_mem_config.gni")
+
+config("purgeable_builder_config") {
+  include_dirs = [ "include" ]
+  cflags_cc = [ "-fexceptions" ]
+}
+
+ohos_shared_library("pixelmap_builder") {
+  sources = []
+  include_dirs = []
+  defines = []
+
+  if (purgeable_ashmem_enable) {
+    sources += [ "src/purgeable_pixelmap_builder.cpp" ]
+    include_dirs += [ "include/purgeable_pixelmap_builder.h" ]
+    defines += [ "IMAGE_PURGEABLE_PIXELMAP" ]
+  }
+
+  external_deps = [
+    "c_utils:utils",
+    "hitrace_native:hitrace_meter",
+    "hiviewdfx_hilog_native:libhilog",
+    "init:libbegetutil",
+    "memory_utils:libpurgeablemem",
+    "multimedia_image_framework:image",
+    "multimedia_image_framework:image_native",
+  ]
+  public_configs = [ ":purgeable_builder_config" ]
+  subsystem_name = "commonlibrary"
+  part_name = "memory_utils"
+}

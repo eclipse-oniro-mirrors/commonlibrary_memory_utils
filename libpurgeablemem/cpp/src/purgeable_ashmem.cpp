@@ -44,9 +44,10 @@ PurgeableAshMem::PurgeableAshMem(std::unique_ptr<PurgeableMemBuilder> builder)
     ashmemFd_ = -1;
     buildDataCount_ = 0;
     isSupport_ = false;
+    isChange_ = false;
     IF_NULL_LOG_ACTION(builder, "%{public}s: input builder nullptr", return);
     builder_ = std::move(builder);
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString().c_str());
 }
 
 PurgeableAshMem::PurgeableAshMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder> builder)
@@ -56,6 +57,7 @@ PurgeableAshMem::PurgeableAshMem(size_t dataSize, std::unique_ptr<PurgeableMemBu
     ashmemFd_ = -1;
     buildDataCount_ = 0;
     isSupport_ = false;
+    isChange_ = false;
     if (dataSize == 0) {
         return;
     }
@@ -64,17 +66,17 @@ PurgeableAshMem::PurgeableAshMem(size_t dataSize, std::unique_ptr<PurgeableMemBu
 
     CreatePurgeableData_();
     builder_ = std::move(builder);
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString_().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString().c_str());
 }
 
 PurgeableAshMem::~PurgeableAshMem()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString_().c_str());
-    if (dataPtr_) {
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
+    if (!isChange_ && dataPtr_) {
         if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
         } else {
-            if (UxpteIsEnabled() && !IsPurged_()) {
+            if (UxpteIsEnabled() && !IsPurged()) {
                 PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
             }
             dataPtr_ = nullptr;
@@ -89,13 +91,13 @@ int PurgeableAshMem::GetAshmemFd()
     return ashmemFd_;
 }
 
-bool PurgeableAshMem::IsPurged_()
+bool PurgeableAshMem::IsPurged()
 {
     if (!isSupport_) {
         return false;
     }
     int ret = ioctl(ashmemFd_, PURGEABLE_ASHMEM_IS_PURGED);
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s: IsPurged_ %{public}d", __func__, ret);
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s: IsPurged %{public}d", __func__, ret);
     return ret ? true : false;
 }
 
@@ -127,11 +129,11 @@ bool PurgeableAshMem::CreatePurgeableData_()
     if (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1) {
         isSupport_ = true;
     }
-    Unpin_();
+    Unpin();
     return true;
 }
 
-bool PurgeableAshMem::Pin_()
+bool PurgeableAshMem::Pin()
 {
     if (!isSupport_) {
         return true;
@@ -147,7 +149,7 @@ bool PurgeableAshMem::Pin_()
     return true;
 }
 
-bool PurgeableAshMem::Unpin_()
+bool PurgeableAshMem::Unpin()
 {
     if (!isSupport_) {
         return true;
@@ -163,7 +165,18 @@ bool PurgeableAshMem::Unpin_()
     return true;
 }
 
-void PurgeableAshMem::AfterRebuildSucc_()
+int PurgeableAshMem::GetPinStatus() const
+{
+    int ret = 0;
+    if (!isSupport_) {
+        return ret;
+    }
+    ret = ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_);
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s: GetPinStatus %{public}d", __func__, ret);
+    return ret;
+}
+
+void PurgeableAshMem::AfterRebuildSucc()
 {
     TEMP_FAILURE_RETRY(ioctl(ashmemFd_, PURGEABLE_ASHMEM_REBUILD_SUCCESS));
 }
@@ -187,7 +200,7 @@ void PurgeableAshMem::ResizeData(size_t newSize)
     CreatePurgeableData_();
 }
 
-void PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
+bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
 {
     if (dataPtr_) {
         if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE)) != 0) {
@@ -203,14 +216,16 @@ void PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
     ashmemFd_ = fd;
     dataPtr_ = data;
     buildDataCount_++;
+    isChange_ = true;
     TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_SET_PURGEABLE));
     if (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1) {
         isSupport_ = true;
     }
-    Unpin_();
+    Unpin();
+    return true;
 }
 
-inline std::string PurgeableAshMem::ToString_() const
+inline std::string PurgeableAshMem::ToString() const
 {
     return "";
 }
