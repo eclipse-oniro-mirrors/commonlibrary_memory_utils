@@ -30,12 +30,12 @@ namespace PurgeableMem {
 const std::string THREAD_POOL_TASK_NUMBER_SYS_NAME = "persist.commonlibrary.purgeable.threadpooltasknum";
 const std::string LRU_CACHE_CAPACITY_SYS_NAME = "persist.commonlibrary.purgeable.lrucachecapacity";
 /* Threadpool task number and lrucache capacity */
-constexpr int32_t THREAD_POOL_TASK_NUMBER = 8;
+constexpr int32_t THREAD_POOL_TASK_NUMBER = 4;
 constexpr int32_t MIN_THREAD_POOL_TASK_NUMBER = 1;
 constexpr int32_t MAX_THREAD_POOL_TASK_NUMBER = 20;
-constexpr int32_t LRU_CACHE_CAPACITY = 100;
+constexpr int32_t LRU_CACHE_CAPACITY = 500;
 constexpr int32_t MIN_LRU_CACHE_CAPACITY = 1;
-constexpr int32_t MAX_LRU_CACHE_CAPACITY = 200;
+constexpr int32_t MAX_LRU_CACHE_CAPACITY = 2000;
 
 class LruCache {
 public:

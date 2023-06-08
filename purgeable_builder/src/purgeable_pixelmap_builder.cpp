@@ -32,6 +32,11 @@
 namespace OHOS {
 namespace PurgeableBuilder {
 constexpr HiviewDFX::HiLogLabel LABEL = { LOG_CORE, 0xD001799, "PurgeablePixelMapBuilder" };
+constexpr int THRESHOLD_HEIGHT = 256;
+constexpr int THRESHOLD_WIDGHT = 256;
+const std::string SYSTEM_PARAM_PURGEABLE_ENABLE = "persist.memmgr.purgeable.enable";
+const std::string SYSTEM_PARAM_PIXELMAP_THRESHOLD_HEIGHT = "persist.memmgr.purgeable.pixelmap.threshold.height";
+const std::string SYSTEM_PARAM_PIXELMAP_THRESHOLD_WIDGHT = "persist.memmgr.purgeable.pixelmap.threshold.widght";
 
 PurgeablePixelMapBuilder::PurgeablePixelMapBuilder(uint32_t index, std::unique_ptr<ImageSource> &imageSource,
     DecodeOptions opts, PixelMap *pixelMap)
@@ -66,7 +71,7 @@ bool PurgeablePixelMapBuilder::Build(void *data, size_t size)
 
 bool GetSysForPurgeable()
 {
-    return system::GetBoolParameter("persist.memmgr.purgeable.enable", false);
+    return system::GetBoolParameter(SYSTEM_PARAM_PURGEABLE_ENABLE, false);
 }
 
 void SetBuilderToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
@@ -120,6 +125,18 @@ void AddToPurgeableResourceMgr(std::unique_ptr<PixelMap> &pixelMap)
     FinishTrace(HITRACE_TAG_ZIMAGE);
 }
 
+bool IfCanBePurgeable(DecodeOptions &decodeOpts)
+{
+    int thresholdHeight = system::GetIntParameter(SYSTEM_PARAM_PIXELMAP_THRESHOLD_HEIGHT, THRESHOLD_HEIGHT);
+    int thresholdWidght = system::GetIntParameter(SYSTEM_PARAM_PIXELMAP_THRESHOLD_WIDGHT, THRESHOLD_WIDGHT);
+    Size size = decodeOpts.desiredSize;
+
+    if (size.height > thresholdHeight || size.width > thresholdWidght) {
+        return false;
+    }
+    return true;
+}
+
 bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, std::unique_ptr<ImageSource> &backupImgSrc4Rebuild,
     DecodeOptions &decodeOpts)
 {
@@ -127,6 +144,10 @@ bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, std::unique_
     HiviewDFX::HiLog::Debug(LABEL, "MakePixelMapToBePurgeable in.");
 
     if (!GetSysForPurgeable()) {
+        return false;
+    }
+
+    if (!IfCanBePurgeable(decodeOpts)) {
         return false;
     }
 
