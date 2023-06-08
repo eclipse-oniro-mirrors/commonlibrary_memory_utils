@@ -152,6 +152,28 @@ void PurgeableMemBase::EndWrite()
     Unpin();
 }
 
+bool PurgeableMemBase::BeginReadWithDataLock()
+{
+    std::lock_guard<std::mutex> lock(dataLock_);
+
+    if (isDataValid_) {
+        return BeginRead();
+    }
+
+    return false;
+}
+
+void PurgeableMemBase::EndReadWithDataLock()
+{
+    std::lock_guard<std::mutex> lock(dataLock_);
+
+    if (isDataValid_) {
+        EndRead();
+    }
+
+    return;
+}
+
 bool PurgeableMemBase::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilder> modifier)
 {
     IF_NULL_LOG_ACTION(modifier, "input modifier is nullptr", return false);
@@ -240,6 +262,16 @@ void PurgeableMemBase::SetRebuildSuccessCallback(std::function<void()> &callback
     if (builder_) {
         builder_->SetRebuildSuccessCallback(callback);
     }
+}
+
+bool PurgeableMemBase::IsDataValid()
+{
+    return isDataValid_;
+}
+
+void PurgeableMemBase::SetDataValid(bool target)
+{
+    isDataValid_ = target;
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

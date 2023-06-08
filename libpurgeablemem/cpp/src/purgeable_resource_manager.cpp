@@ -39,6 +39,9 @@ void LruCache::Insert(std::shared_ptr<PurgeableMemBase> key)
         return;
     }
 
+    std::lock_guard<std::mutex> dataLock(key->dataLock_);
+    key->SetDataValid(true);
+
     auto resourcePtrIter = positionMap_.find(key);
     if (resourcePtrIter != positionMap_.end()) {
         resourcePtrList_.splice(resourcePtrList_.begin(), resourcePtrList_, resourcePtrIter->second);
@@ -63,6 +66,9 @@ void LruCache::Erase(std::shared_ptr<PurgeableMemBase> key)
     if (key == nullptr) {
         return;
     }
+
+    std::lock_guard<std::mutex> dataLock(key->dataLock_);
+    key->SetDataValid(false);
 
     auto resourcePtrIter = positionMap_.find(key);
     if (resourcePtrIter == positionMap_.end()) {
@@ -139,7 +145,7 @@ void PurgeableResourceManager::BeginAccessPurgeableMem()
             continue;
         }
 
-        auto task = std::bind(&PurgeableMemBase::BeginRead, resourcePtr);
+        auto task = std::bind(&PurgeableMemBase::BeginReadWithDataLock, resourcePtr);
         threadPool_.AddTask(task);
     }
 
@@ -158,7 +164,7 @@ void PurgeableResourceManager::EndAccessPurgeableMem()
             continue;
         }
 
-        auto task = std::bind(&PurgeableMemBase::EndRead, resourcePtr);
+        auto task = std::bind(&PurgeableMemBase::EndReadWithDataLock, resourcePtr);
         threadPool_.AddTask(task);
     }
 

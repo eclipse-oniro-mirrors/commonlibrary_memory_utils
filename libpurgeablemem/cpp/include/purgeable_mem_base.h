@@ -91,6 +91,10 @@ public:
      */
     virtual void ResizeData(size_t newSize);
     void SetRebuildSuccessCallback(std::function<void()> &callback);
+    bool IsDataValid();
+    void SetDataValid(bool target);
+    bool BeginReadWithDataLock();
+    void EndReadWithDataLock();
 
     PurgeableMemBase();
     virtual ~PurgeableMemBase();
@@ -101,6 +105,8 @@ public:
 
 protected:
     void *dataPtr_ = nullptr;
+    std::mutex dataLock_;
+    bool isDataValid_ {true};
     size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
     std::shared_mutex rwlock_;

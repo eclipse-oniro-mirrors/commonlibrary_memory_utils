@@ -52,6 +52,7 @@ void RemoveFromPurgeableResourceMgr(std::shared_ptr<PixelMap> &pixelMap);
 void AddToPurgeableResourceMgr(std::unique_ptr<PixelMap> &pixelMap);
 bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
     std::unique_ptr<ImageSource> &backupImgSrc4Rebuild, DecodeOptions &decodeOpts);
+bool IfCanBePurgeable(DecodeOptions &decodeOpts);
 } // namespace PurgeableBuilder
 } // namespace OHOS
 #endif /* OHOS_MEMORY_UTILS_PURGEABLE_PIXELMAP_BUILDER_H */
