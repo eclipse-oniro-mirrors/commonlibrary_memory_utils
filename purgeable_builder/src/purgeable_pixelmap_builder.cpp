@@ -71,7 +71,7 @@ bool PurgeablePixelMapBuilder::Build(void *data, size_t size)
 
 bool GetSysForPurgeable()
 {
-    return system::GetBoolParameter(SYSTEM_PARAM_PURGEABLE_ENABLE, true);
+    return system::GetBoolParameter(SYSTEM_PARAM_PURGEABLE_ENABLE, false);
 }
 
 void SetBuilderToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
