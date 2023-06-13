@@ -30,12 +30,12 @@ ohos_shared_library("pixelmap_builder") {
     defines += [ "IMAGE_PURGEABLE_PIXELMAP" ]
   }
 
+  deps = [ "../libpurgeablemem:libpurgeablemem" ]
   external_deps = [
     "c_utils:utils",
     "hitrace_native:hitrace_meter",
     "hiviewdfx_hilog_native:libhilog",
     "init:libbegetutil",
-    "memory_utils:libpurgeablemem",
     "multimedia_image_framework:image",
     "multimedia_image_framework:image_native",
   ]
