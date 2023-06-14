@@ -119,13 +119,22 @@ size_t LruCache::Size() const
 
 PurgeableResourceManager::PurgeableResourceManager()
 {
-    GetParaFromConfiguration();
+    int32_t lruCacheCapacity = GetLruCacheCapacityFromSysPara();
+    if (lruCacheCapacity < MIN_LRU_CACHE_CAPACITY || lruCacheCapacity > MAX_LRU_CACHE_CAPACITY) {
+        PM_HILOG_ERROR(LOG_CORE, "[PurgeableResourceManager] Get error lrucache capacity from system parameter.");
+        lruCacheCapacity = LRU_CACHE_CAPACITY;
+    }
+    lruCache_.SetCapacity(lruCacheCapacity);
+    isThreadPoolStarted_ = false;
+    PM_HILOG_DEBUG(LOG_CORE, "PurgeableResourceManager init. lruCacheCapacity is: %{public}d", lruCacheCapacity);
 }
 
 PurgeableResourceManager::~PurgeableResourceManager()
 {
     std::lock_guard<std::mutex> lock(mutex_);
-    threadPool_.Stop();
+    if (isThreadPoolStarted_) {
+        threadPool_.Stop();
+    }
     lruCache_.Clear();
 }
 
@@ -140,11 +149,19 @@ void PurgeableResourceManager::BeginAccessPurgeableMem()
     std::lock_guard<std::mutex> lock(mutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::BeginAccessPurgeableMem");
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
+
+    if (resourcePtrList.size() == 0) {
+        return;
+    }
+
+    if (!isThreadPoolStarted_) {
+        StartThreadPool();
+    }
+
     for (auto &resourcePtr : resourcePtrList) {
         if (resourcePtr == nullptr) {
             continue;
         }
-
         auto task = std::bind(&PurgeableMemBase::BeginReadWithDataLock, resourcePtr);
         threadPool_.AddTask(task);
     }
@@ -159,11 +176,19 @@ void PurgeableResourceManager::EndAccessPurgeableMem()
     std::lock_guard<std::mutex> lock(mutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::EndAccessPurgeableMem");
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
+
+    if (resourcePtrList.size() == 0) {
+        return;
+    }
+
+    if (!isThreadPoolStarted_) {
+        StartThreadPool();
+    }
+
     for (auto &resourcePtr : resourcePtrList) {
         if (resourcePtr == nullptr) {
             continue;
         }
-
         auto task = std::bind(&PurgeableMemBase::EndReadWithDataLock, resourcePtr);
         threadPool_.AddTask(task);
     }
@@ -258,37 +283,31 @@ void PurgeableResourceManager::ShowLruCache() const
     }
 }
 
-int32_t PurgeableResourceManager::GetThreadPoolTaskNumFromSysPara()
+int32_t PurgeableResourceManager::GetThreadPoolTaskNumFromSysPara() const
 {
     return system::GetIntParameter<int32_t>(THREAD_POOL_TASK_NUMBER_SYS_NAME, THREAD_POOL_TASK_NUMBER);
 }
 
-int32_t PurgeableResourceManager::GetLruCacheCapacityFromSysPara()
+int32_t PurgeableResourceManager::GetLruCacheCapacityFromSysPara() const
 {
     return system::GetIntParameter<int32_t>(LRU_CACHE_CAPACITY_SYS_NAME, LRU_CACHE_CAPACITY);
 }
 
-void PurgeableResourceManager::GetParaFromConfiguration()
+void PurgeableResourceManager::StartThreadPool()
 {
+    if (isThreadPoolStarted_) {
+        return;
+    }
+
     int32_t threadPoolTaskNum = GetThreadPoolTaskNumFromSysPara();
-    int32_t lruCacheCapacity = GetLruCacheCapacityFromSysPara();
     if (threadPoolTaskNum < MIN_THREAD_POOL_TASK_NUMBER || threadPoolTaskNum > MAX_THREAD_POOL_TASK_NUMBER) {
         PM_HILOG_ERROR(LOG_CORE, "[PurgeableResourceManager] Get error threadpool task number from system parameter.");
-        return;
+        threadPoolTaskNum = THREAD_POOL_TASK_NUMBER;
     }
 
-    if (lruCacheCapacity < MIN_LRU_CACHE_CAPACITY || lruCacheCapacity > MAX_LRU_CACHE_CAPACITY) {
-        PM_HILOG_ERROR(LOG_CORE, "[PurgeableResourceManager] Get error lrucache capacity from system parameter.");
-        return;
-    }
-
-    lruCache_.SetCapacity(lruCacheCapacity);
-    if (threadPool_.GetThreadsNum() == 0) {
-        threadPool_.Start(threadPoolTaskNum);
-    }
-
-    PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] lruCacheCapacity is: %{public}d, "
-        "threadPool threadsNum is: %{public}zu", lruCacheCapacity, threadPool_.GetThreadsNum());
+    threadPool_.Start(threadPoolTaskNum);
+    isThreadPoolStarted_ = true;
+    PM_HILOG_DEBUG(LOG_CORE, "StartThreadPool finish.");
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

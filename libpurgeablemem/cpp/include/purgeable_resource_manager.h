@@ -29,11 +29,12 @@ namespace PurgeableMem {
 /* System parameter name */
 const std::string THREAD_POOL_TASK_NUMBER_SYS_NAME = "persist.commonlibrary.purgeable.threadpooltasknum";
 const std::string LRU_CACHE_CAPACITY_SYS_NAME = "persist.commonlibrary.purgeable.lrucachecapacity";
+const std::string THREAD_POOL_NAME = "PurgeThread";
 /* Threadpool task number and lrucache capacity */
 constexpr int32_t THREAD_POOL_TASK_NUMBER = 4;
 constexpr int32_t MIN_THREAD_POOL_TASK_NUMBER = 1;
 constexpr int32_t MAX_THREAD_POOL_TASK_NUMBER = 20;
-constexpr int32_t LRU_CACHE_CAPACITY = 500;
+constexpr int32_t LRU_CACHE_CAPACITY = 200;
 constexpr int32_t MIN_LRU_CACHE_CAPACITY = 1;
 constexpr int32_t MAX_LRU_CACHE_CAPACITY = 2000;
 
@@ -98,13 +99,14 @@ public:
 
 private:
     PurgeableResourceManager();
-    int32_t GetThreadPoolTaskNumFromSysPara();
-    int32_t GetLruCacheCapacityFromSysPara();
-    void GetParaFromConfiguration();
+    int32_t GetThreadPoolTaskNumFromSysPara() const;
+    int32_t GetLruCacheCapacityFromSysPara() const;
+    void StartThreadPool();
 
     mutable std::mutex mutex_;
     LruCache lruCache_;
-    ThreadPool threadPool_;
+    ThreadPool threadPool_ {THREAD_POOL_NAME};
+    bool isThreadPoolStarted_ {false};
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */
