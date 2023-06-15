@@ -120,21 +120,22 @@ bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph)
 
     for (const auto &memTrackerType : MEMORY_TRACKER_TYPES) {
         std::vector<MemoryRecord> records;
-        if (memtrack->GetDevMem(pid, memTrackerType.first, records) == HDF_SUCCESS) {
-            uint64_t value = 0;
-            for (const auto &record : records) {
-                if ((static_cast<uint32_t>(record.flags) & FLAG_UNMAPPED) == FLAG_UNMAPPED) {
-                    value = static_cast<uint64_t>(record.size / BYTE_PER_KB);
-                    break;
-                }
+        if (memtrack->GetDevMem(pid, memTrackerType.first, records) != HDF_SUCCESS) {
+            continue;
+        }
+        uint64_t value = 0;
+        for (const auto &record : records) {
+            if ((static_cast<uint32_t>(record.flags) & FLAG_UNMAPPED) == FLAG_UNMAPPED) {
+                value = static_cast<uint64_t>(record.size / BYTE_PER_KB);
+                break;
             }
-            if (memTrackerType.first == MEMORY_TRACKER_TYPE_GL) {
-                gl = value;
-                ret = true;
-            } else if (memTrackerType.first == MEMORY_TRACKER_TYPE_GRAPH) {
-                graph = value;
-                ret = true;
-            }
+        }
+        if (memTrackerType.first == MEMORY_TRACKER_TYPE_GL) {
+            gl = value;
+            ret = true;
+        } else if (memTrackerType.first == MEMORY_TRACKER_TYPE_GRAPH) {
+            graph = value;
+            ret = true;
         }
     }
     return ret;
