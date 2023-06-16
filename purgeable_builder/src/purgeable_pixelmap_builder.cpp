@@ -144,20 +144,24 @@ bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, std::unique_
     HiviewDFX::HiLog::Debug(LABEL, "MakePixelMapToBePurgeable in.");
 
     if (!GetSysForPurgeable()) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return false;
     }
 
     if (!IfCanBePurgeable(decodeOpts)) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return false;
     }
 
     if (pixelMap == nullptr || backupImgSrc4Rebuild == nullptr) {
         HiviewDFX::HiLog::Error(LABEL, "PixelMap or backupImgSrc4Rebuild is null.");
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return false;
     }
 
     if (pixelMap->IsPurgeable()) {
         HiviewDFX::HiLog::Error(LABEL, "PixelMap is already purgeable.");
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return false;
     }
 
