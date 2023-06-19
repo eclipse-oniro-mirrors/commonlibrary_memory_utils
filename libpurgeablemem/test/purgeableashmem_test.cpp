@@ -44,8 +44,8 @@ class TestDataBuilder : public PurgeableMemBuilder {
 public:
     TestDataBuilder(char start, char end)
     {
-        this->start = start;
-        this->end = end;
+        this->start_ = start;
+        this->end_ = end;
     }
 
     bool Build(void *data, size_t size)
@@ -55,12 +55,12 @@ public:
         }
         char *str = static_cast<char *>(data);
         size_t len = 0;
-        for (char ch = start; ch <= end && len < size; ch++) {
+        for (char ch = start_; ch <= end_ && len < size; ch++) {
             str[len++] = ch;
         }
         str[size - 1] = 0;
         std::cout << "rebuild addr("<< (unsigned long long)str <<") " <<
-            start << "~" << end << ", data=[" << str << "]" << std::endl;
+            start_ << "~" << end_ << ", data=[" << str << "]" << std::endl;
         return true;
     }
 
@@ -70,23 +70,24 @@ public:
     }
 
 private:
-    char start, end;
+    char start_;
+    char end_;
 };
 
 class TestDataModifier : public PurgeableMemBuilder {
 public:
     TestDataModifier(char from, char to)
     {
-        this->from = from;
-        this->to = to;
+        this->from_ = from;
+        this->to_ = to;
     }
 
     bool Build(void *data, size_t size)
     {
         char *str = static_cast<char *>(data);
         for (size_t i = 0; i < size && str[i]; i++) {
-            if (str[i] == from) {
-                str[i] = to;
+            if (str[i] == from_) {
+                str[i] = to_;
             }
         }
         return true;
@@ -98,14 +99,15 @@ public:
     }
 
 private:
-    char from, to;
+    char from_;
+    char to_;
 };
 
 class TestBigDataBuilder : public PurgeableMemBuilder {
 public:
     explicit TestBigDataBuilder(char target)
     {
-        this->target = target;
+        this->target_ = target;
     }
 
     bool Build(void *data, size_t size)
@@ -115,7 +117,7 @@ public:
         }
         char *str = static_cast<char *>(data);
         size_t len = 0;
-        for (char ch = target; len < size;) {
+        for (char ch = target_; len < size;) {
             str[len++] = ch;
         }
         str[size - 1] = 0;
@@ -128,7 +130,7 @@ public:
     }
 
 private:
-    char target;
+    char target_;
 };
 
 class PurgeableAshmemTest : public testing::Test {
