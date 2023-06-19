@@ -41,8 +41,8 @@ ohos_shared_library("libpurgeablemem") {
   include_dirs = [ "include" ]
   external_deps = [
     "c_utils:utils",
+    "hilog:libhilog",
     "hitrace_native:hitrace_meter",
-    "hiviewdfx_hilog_native:libhilog",
     "init:libbegetutil",
     "ipc:ipc_core",
   ]
@@ -58,7 +58,7 @@ ohos_shared_library("purgeable_memory_ndk") {
   deps = [ ":libpurgeablemem" ]
   external_deps = [
     "c_utils:utils",
-    "hiviewdfx_hilog_native:libhilog",
+    "hilog:libhilog",
   ]
 
   relative_install_dir = "ndk"

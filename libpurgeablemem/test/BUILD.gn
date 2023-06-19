@@ -19,7 +19,7 @@ module_output_path = "libpurgeablemem/"
 
 purgeable_external_deps = [
   "c_utils:utils",
-  "hiviewdfx_hilog_native:libhilog",
+  "hilog:libhilog",
   "memory_utils:libpurgeablemem",
 ]
 

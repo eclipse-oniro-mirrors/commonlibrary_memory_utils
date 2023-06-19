@@ -20,7 +20,7 @@
       "components": [
         "c_utils",
         "drivers_interface_memorytracker",
-        "hiviewdfx_hilog_native",
+        "hilog",
         "hitrace_native",
         "init",
         "ipc",
