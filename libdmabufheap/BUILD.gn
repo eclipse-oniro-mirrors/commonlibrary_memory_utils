@@ -22,7 +22,7 @@ ohos_shared_library("libdmabufheap") {
   include_dirs = [ "include" ]
   external_deps = [
     "c_utils:utils",
-    "hiviewdfx_hilog_native:libhilog",
+    "hilog:libhilog",
   ]
   public_configs = [ ":libdmabufheap_config" ]
   subsystem_name = "commonlibrary"
