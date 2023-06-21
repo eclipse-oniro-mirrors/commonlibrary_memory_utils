@@ -98,7 +98,7 @@ bool PurgeableAshMem::IsPurged()
     }
     int ret = ioctl(ashmemFd_, PURGEABLE_ASHMEM_IS_PURGED);
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s: IsPurged %{public}d", __func__, ret);
-    return ret ? true : false;
+    return ret > 0 ? true : false;
 }
 
 bool PurgeableAshMem::CreatePurgeableData_()
