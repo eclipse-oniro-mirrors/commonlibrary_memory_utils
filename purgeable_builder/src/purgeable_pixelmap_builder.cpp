@@ -34,7 +34,7 @@ namespace PurgeableBuilder {
 constexpr HiviewDFX::HiLogLabel LABEL = { LOG_CORE, 0xD001799, "PurgeablePixelMapBuilder" };
 constexpr int THRESHOLD_HEIGHT = 256;
 constexpr int THRESHOLD_WIDGHT = 256;
-const std::string SYSTEM_PARAM_PURGEABLE_ENABLE = "persist.memmgr.purgeable.enable";
+const std::string SYSTEM_PARAM_PURGEABLE_ENABLE = "persist.resourceschedule.memmgr.purgeable.enable";
 const std::string SYSTEM_PARAM_PIXELMAP_THRESHOLD_HEIGHT = "persist.memmgr.purgeable.pixelmap.threshold.height";
 const std::string SYSTEM_PARAM_PIXELMAP_THRESHOLD_WIDGHT = "persist.memmgr.purgeable.pixelmap.threshold.widght";
 
