@@ -64,7 +64,7 @@ uint64_t GetRssByPid(const int pid)
     std::istringstream isStatm(statm);
     isStatm >> vss >> rss; // pages
 
-    size = atoi(rss.c_str()) * PAGE_TO_KB;
+    size = static_cast<int>(atoi(rss.c_str())) * PAGE_TO_KB;
     return size;
 }
 

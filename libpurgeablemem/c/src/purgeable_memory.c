@@ -68,7 +68,7 @@ size_t OH_PurgeableMemory_ContentSize(OH_PurgeableMemory *purgObj)
 }
 
 bool OH_PurgeableMemory_AppendModify(OH_PurgeableMemory *purgObj,
-                                     OH_PurgeableMemory_ModifyFunc func, void *funcPara)
+    OH_PurgeableMemory_ModifyFunc func, void *funcPara)
 {
     return PurgMemAppendModify((PurgMem *)purgObj, func, funcPara);
 }

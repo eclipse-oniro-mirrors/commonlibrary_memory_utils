@@ -90,7 +90,7 @@ static inline size_t GetUxPageSize_(uint64_t dataAddr, size_t dataSize)
     return (UxptePageNo_(dataAddr + dataSize - 1) - UxptePageNo_(dataAddr) + 1) * PAGE_SIZE;
 }
 
-static inline uint64_t RoundUp_(uint64_t val, size_t align)
+static inline uint64_t RoundUp(uint64_t val, size_t align)
 {
     if (align == 0) {
         return val;
@@ -325,8 +325,11 @@ static bool IsPresentAt_(UxPageTableStruct *upt, uint64_t addr)
 
 static PMState UxpteOps_(UxPageTableStruct *upt, uint64_t addr, size_t len, enum UxpteOp op)
 {
+    if (upt == NULL) {
+        return PM_BUILDER_NULL;
+    }
     uint64_t start =  RoundDown_(addr, PAGE_SIZE);
-    uint64_t end = RoundUp_(addr + len, PAGE_SIZE);
+    uint64_t end = RoundUp(addr + len, PAGE_SIZE);
     if (start < upt->dataAddr || end > (upt->dataAddr + upt->dataSize)) {
         HILOG_ERROR(LOG_CORE, "%{public}s: addr(0x%{public}llx) start(0x%{public}llx) < dataAddr(0x%{public}llx)"
             " || end(0x%{public}llx) > dataAddr+dataSize(0x%{public}llx) out of bound",

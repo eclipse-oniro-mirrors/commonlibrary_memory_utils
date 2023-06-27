@@ -47,7 +47,7 @@ static inline void LogPurgMemInfo_(struct PurgMem *obj)
         (unsigned long)(obj->builder), (unsigned long)(obj->uxPageTable));
 }
 
-static inline size_t RoundUp_(size_t val, size_t align)
+static inline size_t RoundUp(size_t val, size_t align)
 {
     if (align == 0) {
         return val;
@@ -67,7 +67,7 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: malloc struct PurgMem fail", __func__);
         return NULL;
     }
-    size_t size = RoundUp_(len, PAGE_SIZE);
+    size_t size = RoundUp(len, PAGE_SIZE);
     int type = MAP_ANONYMOUS;
     type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
     pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, type, -1, 0);
@@ -165,7 +165,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     }
     /* unmap purgeable mem region */
     if (purgObj->dataPtr) {
-        size_t size = RoundUp_(purgObj->dataSizeInput, PAGE_SIZE);
+        size_t size = RoundUp(purgObj->dataSizeInput, PAGE_SIZE);
         if (munmap(purgObj->dataPtr, size) != 0) {
             PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
             err = PM_UNMAP_PURG_FAIL;
@@ -215,7 +215,7 @@ static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
 {
     bool succ = false;
     /* clear content before rebuild */
-    if (memset_s(purgObj->dataPtr, RoundUp_(purgObj->dataSizeInput, PAGE_SIZE), 0, purgObj->dataSizeInput) != EOK) {
+    if (memset_s(purgObj->dataPtr, RoundUp(purgObj->dataSizeInput, PAGE_SIZE), 0, purgObj->dataSizeInput) != EOK) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s, clear content fail", __func__);
         return succ;
     }
