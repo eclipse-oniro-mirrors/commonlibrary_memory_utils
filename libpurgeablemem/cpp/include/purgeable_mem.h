@@ -32,7 +32,6 @@ public:
     ~PurgeableMem();
     void ResizeData(size_t newSize) override;
 
-
 protected:
     std::unique_ptr<UxPageTable> pageTable_ = nullptr;
     bool Pin() override;

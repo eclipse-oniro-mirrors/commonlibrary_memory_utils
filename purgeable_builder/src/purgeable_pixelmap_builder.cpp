@@ -59,7 +59,10 @@ bool PurgeablePixelMapBuilder::Build(void *data, size_t size)
 
     StartTrace(HITRACE_TAG_ZIMAGE, ("OHOS::PurgeableBuilder::PixelMapPurgeableMemBuilder::CopyData " +
                                     std::to_string(size)));
-    memcpy_s((char *)pixelMap_->GetPixels(), size, (char *)pixelMap->GetPixels(), size);
+    if (memcpy_s((char *)pixelMap_->GetPixels(), size, (char *)pixelMap->GetPixels(), size)) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
+        return false;
+    }
 
     DoRebuildSuccessCallback();
 

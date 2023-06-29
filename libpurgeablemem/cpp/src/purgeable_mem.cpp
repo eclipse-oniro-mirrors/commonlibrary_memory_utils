@@ -29,7 +29,7 @@ namespace PurgeableMem {
 #endif
 #define LOG_TAG "PurgeableMem"
 
-static inline size_t RoundUp_(size_t val, size_t align)
+static inline size_t RoundUp(size_t val, size_t align)
 {
     if (align == 0) {
         return val;
@@ -59,7 +59,7 @@ PurgeableMem::~PurgeableMem()
 {
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     if (dataPtr_) {
-        if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE)) != 0) {
+        if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
         } else {
             if (UxpteIsEnabled() && !IsPurged()) {
@@ -82,7 +82,7 @@ bool PurgeableMem::CreatePurgeableData_()
 {
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     pageTable_ = nullptr;
-    size_t size = RoundUp_(dataSizeInput_, PAGE_SIZE);
+    size_t size = RoundUp(dataSizeInput_, PAGE_SIZE);
     unsigned int utype = MAP_ANONYMOUS;
     utype |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
     int type = static_cast<int>(utype);
@@ -126,7 +126,7 @@ void PurgeableMem::ResizeData(size_t newSize)
         return;
     }
     if (dataPtr_) {
-        if (munmap(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE)) != 0) {
+        if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
         } else {
             dataPtr_ = nullptr;

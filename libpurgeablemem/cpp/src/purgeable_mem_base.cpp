@@ -29,7 +29,7 @@ namespace PurgeableMem {
 #endif
 #define LOG_TAG "PurgeableMem"
 
-static inline size_t RoundUp_(size_t val, size_t align)
+static inline size_t RoundUp(size_t val, size_t align)
 {
     if (align == 0) {
         return val;
@@ -183,7 +183,7 @@ bool PurgeableMemBase::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilde
     }
     /* log modify */
     if (builder_) {
-        builder_->AppendBuilder(std::move(modifier)); 
+        builder_->AppendBuilder(std::move(modifier));
     } else {
         builder_ = std::move(modifier);
     }
@@ -221,7 +221,7 @@ bool PurgeableMemBase::BuildContent_()
 {
     bool succ = false;
     /* clear content before rebuild */
-    if (memset_s(dataPtr_, RoundUp_(dataSizeInput_, PAGE_SIZE), 0, dataSizeInput_) != EOK) {
+    if (memset_s(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE), 0, dataSizeInput_) != EOK) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s, clear content fail", __func__);
         return succ;
     }
