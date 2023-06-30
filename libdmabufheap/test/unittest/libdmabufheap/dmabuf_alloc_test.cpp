@@ -25,8 +25,8 @@
 #include <climits>
 #include <dirent.h>
 #include <string>
-#include "securec.h"
 #include "gtest/gtest.h"
+#include "securec.h"
 #include "dmabuf_alloc.h"
 
 using namespace testing;

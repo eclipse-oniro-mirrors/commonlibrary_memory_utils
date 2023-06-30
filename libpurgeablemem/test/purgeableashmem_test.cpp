@@ -15,15 +15,16 @@
 
 #include <cstdio>
 #include <cstring>
-#include <linux/ashmem.h>
 #include <memory>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <thread>
 #include <unistd.h>
 
-#include "ashmem.h"
+#include <linux/ashmem.h>
+
 #include "gtest/gtest.h"
+#include "ashmem.h"
 #include "purgeable_ashmem.h"
 #include "securec.h"
 
