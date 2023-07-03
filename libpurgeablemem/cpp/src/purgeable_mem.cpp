@@ -19,8 +19,9 @@
 #include "pm_util.h"
 #include "pm_state_c.h"
 #include "pm_smartptr_util.h"
-#include "purgeable_mem.h"
 #include "pm_log.h"
+
+#include "purgeable_mem.h"
 
 namespace OHOS {
 namespace PurgeableMem {

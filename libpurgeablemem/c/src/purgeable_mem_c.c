@@ -330,18 +330,20 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     if (rwlockRet != 0) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
         err = PM_LOCK_WRITE_FAIL;
-        goto uxpte_put;
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, GetPMStateName(err));
+        UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
+        return false;
     }
 
     if (!IsPurged(purgObj)) {
-        goto succ;
+        return true;
     }
 
     /* data is purged */
     rebuildRet = PurgMemBuildData_(purgObj);
     PM_HILOG_INFO_C(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, rebuildRet ? "succ" : "fail");
     if (rebuildRet) {
-        goto succ;
+        return true;
     }
     /* data is purged and rebuild failed. return false */
     err = PMB_BUILD_ALL_FAIL;
@@ -350,12 +352,9 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wr unlock fail. %{public}d", __func__, rwlockRet);
     }
 
-uxpte_put:
     PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: %{public}s, return false, UxptePut.", __func__, GetPMStateName(err));
     UxptePut(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     return false;
-succ:
-    return true;
 }
 
 static inline void EndAccessPurgMem_(struct PurgMem *purgObj)

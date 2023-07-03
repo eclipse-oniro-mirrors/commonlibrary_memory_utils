@@ -26,11 +26,4 @@
         }                                              \
     } while (0)
 
-#define IF_NULL_LOG(pointer, log)                      \
-    do {                                               \
-        if (!(pointer)) {                              \
-            HILOG_ERROR(LOG_CORE, "%{public}s:", log); \
-        }                                              \
-    } while (0)
-
 #endif /* OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_COMMON_INCLUDE_PM_PTR_UTIL_H */

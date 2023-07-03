@@ -16,12 +16,13 @@
 #ifndef OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PURGEABLE_ASHMEM_H
 #define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PURGEABLE_ASHMEM_H
 
-#include <linux/ashmem.h>
 #include <memory>
 #include <shared_mutex>
 #include <string>
 #include <sys/ioctl.h>
 #include <unistd.h>
+
+#include <linux/ashmem.h>
 
 #include "ashmem.h"
 #include "purgeable_mem_builder.h"
