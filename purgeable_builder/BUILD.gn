@@ -35,9 +35,9 @@ ohos_shared_library("pixelmap_builder") {
     "c_utils:utils",
     "hilog:libhilog",
     "hitrace:hitrace_meter",
+    "image_framework:image",
+    "image_framework:image_native",
     "init:libbegetutil",
-    "multimedia_image_framework:image",
-    "multimedia_image_framework:image_native",
   ]
   public_configs = [ ":purgeable_builder_config" ]
   subsystem_name = "commonlibrary"
