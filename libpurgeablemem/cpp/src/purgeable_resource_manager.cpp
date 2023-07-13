@@ -309,5 +309,14 @@ void PurgeableResourceManager::StartThreadPool()
     isThreadPoolStarted_ = true;
     PM_HILOG_DEBUG(LOG_CORE, "StartThreadPool finish.");
 }
+
+void PurgeableResourceManager::AddTaskToThreadPool(const std::function<void()> &f)
+{
+    if (!isThreadPoolStarted_) {
+        StartThreadPool();
+    }
+
+    threadPool_.AddTask(f);
+}
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

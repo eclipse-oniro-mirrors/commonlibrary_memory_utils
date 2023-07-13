@@ -46,12 +46,18 @@ private:
 }; // class PurgeablePixelMapBuilder
 
 bool GetSysForPurgeable();
-void SetBuilderToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
+void SetBuilderToBePurgeable(PixelMap *pixelMap,
                              std::unique_ptr<PurgeableMem::PurgeableMemBuilder> &builder);
-void RemoveFromPurgeableResourceMgr(std::shared_ptr<PixelMap> &pixelMap);
-void AddToPurgeableResourceMgr(std::unique_ptr<PixelMap> &pixelMap);
+void RemoveFromPurgeableResourceMgr(PixelMap *pixelMap);
+void AddToPurgeableResourceMgr(PixelMap *pixelMap);
 bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
     std::unique_ptr<ImageSource> &backupImgSrc4Rebuild, DecodeOptions &decodeOpts);
+bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, const int fd,
+    const SourceOptions &opts, DecodeOptions &decodeOpts);
+bool MakePixelMapToBePurgeableBySrc(PixelMap *pixelMap,
+    std::unique_ptr<ImageSource> &backupImgSrc4Rebuild, DecodeOptions &decodeOpts);
+bool MakePixelMapToBePurgeableByFd(PixelMap *pixelMap, const int fd, const SourceOptions &opts,
+    DecodeOptions &decodeOpts);
 bool IfCanBePurgeable(DecodeOptions &decodeOpts);
 } // namespace PurgeableBuilder
 } // namespace OHOS
