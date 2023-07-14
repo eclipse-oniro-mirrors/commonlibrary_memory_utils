@@ -17,6 +17,7 @@
 
 #include "hitrace_meter.h"
 #include "hilog/log.h"
+#include "media_errors.h"
 #include "parameters.h"
 #include "purgeable_ashmem.h"
 #include "purgeable_mem_base.h"
@@ -77,12 +78,17 @@ bool GetSysForPurgeable()
     return system::GetBoolParameter(SYSTEM_PARAM_PURGEABLE_ENABLE, false);
 }
 
-void SetBuilderToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
+void SetBuilderToBePurgeable(PixelMap *pixelMap,
                              std::unique_ptr<PurgeableMem::PurgeableMemBuilder> &builder)
 {
     HiviewDFX::HiLog::Debug(LABEL, "set builder for purgeable pixelmap. allocatorType = %{public}d.",
                             pixelMap->GetAllocatorType());
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableBuilder::SetBuilderToBePurgeable");
+    if (pixelMap == nullptr) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
+        return;
+    }
+
     if (builder == nullptr) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
@@ -104,10 +110,15 @@ void SetBuilderToBePurgeable(std::unique_ptr<PixelMap> &pixelMap,
     FinishTrace(HITRACE_TAG_ZIMAGE);
 }
 
-void RemoveFromPurgeableResourceMgr(std::shared_ptr<PixelMap> &pixelMap)
+void RemoveFromPurgeableResourceMgr(PixelMap *pixelMap)
 {
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableBuilder::RemoveFromPurgeableResourceMgr");
     HiviewDFX::HiLog::Debug(LABEL, "remove pixelmap from PurgeableResourceMgr.");
+
+    if (pixelMap == nullptr) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
+        return;
+    }
 
     if (pixelMap->IsPurgeable()) {
         PurgeableMem::PurgeableResourceManager::GetInstance().RemoveResource(pixelMap->GetPurgeableMemPtr());
@@ -116,10 +127,15 @@ void RemoveFromPurgeableResourceMgr(std::shared_ptr<PixelMap> &pixelMap)
     FinishTrace(HITRACE_TAG_ZIMAGE);
 }
 
-void AddToPurgeableResourceMgr(std::unique_ptr<PixelMap> &pixelMap)
+void AddToPurgeableResourceMgr(PixelMap *pixelMap)
 {
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableBuilder::AddToPurgeableResourceMgr");
     HiviewDFX::HiLog::Debug(LABEL, "add pixelmap purgeablemem ptr to PurgeableResourceMgr");
+
+    if (pixelMap == nullptr) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
+        return;
+    }
 
     if (pixelMap->IsPurgeable()) {
         PurgeableMem::PurgeableResourceManager::GetInstance().AddResource(pixelMap->GetPurgeableMemPtr());
@@ -142,6 +158,31 @@ bool IfCanBePurgeable(DecodeOptions &decodeOpts)
 
 bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, std::unique_ptr<ImageSource> &backupImgSrc4Rebuild,
     DecodeOptions &decodeOpts)
+{
+    return MakePixelMapToBePurgeableBySrc(pixelMap.get(), backupImgSrc4Rebuild, decodeOpts);
+}
+
+bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, const int fd,
+    const SourceOptions &opts, DecodeOptions &decodeOpts)
+{
+    auto task = std::bind(MakePixelMapToBePurgeableByFd, pixelMap.get(), fd, opts, decodeOpts);
+    PurgeableMem::PurgeableResourceManager::GetInstance().AddTaskToThreadPool(task);
+    return true;
+}
+
+bool MakePixelMapToBePurgeableByFd(PixelMap *pixelMap, const int fd, const SourceOptions &opts,
+    DecodeOptions &decodeOpts)
+{
+    uint32_t errorCode = 0;
+    std::unique_ptr<ImageSource> backupImgSrc = ImageSource::CreateImageSource(fd, opts, errorCode);
+    if (errorCode != Media::SUCCESS) {
+        return false;
+    }
+    return MakePixelMapToBePurgeableBySrc(pixelMap, backupImgSrc, decodeOpts);
+}
+
+bool MakePixelMapToBePurgeableBySrc(PixelMap *pixelMap,
+    std::unique_ptr<ImageSource> &backupImgSrc4Rebuild, DecodeOptions &decodeOpts)
 {
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableBuilder::MakePixelMapToBePurgeable");
     HiviewDFX::HiLog::Debug(LABEL, "MakePixelMapToBePurgeable in.");
@@ -169,7 +210,7 @@ bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, std::unique_
     }
 
     std::unique_ptr<PurgeableMem::PurgeableMemBuilder> purgeableMemBuilder =
-        std::make_unique<PurgeablePixelMapBuilder>(0, backupImgSrc4Rebuild, decodeOpts, pixelMap.get());
+        std::make_unique<PurgeablePixelMapBuilder>(0, backupImgSrc4Rebuild, decodeOpts, pixelMap);
     SetBuilderToBePurgeable(pixelMap, purgeableMemBuilder);
 
     if (pixelMap->IsPurgeable()) {

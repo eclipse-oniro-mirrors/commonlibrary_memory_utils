@@ -93,6 +93,7 @@ public:
     void RemoveResource(std::shared_ptr<PurgeableMemBase> resourcePtr);
     void SetRecentUsedResource(std::shared_ptr<PurgeableMemBase> resourcePtr);
     void SetLruCacheCapacity(int32_t capacity);
+    void AddTaskToThreadPool(const std::function<void()> &f);
     void Clear();
     void RemoveLastResource();
     void ShowLruCache() const;
