@@ -21,64 +21,12 @@
 #include <string>
 #include <unordered_map>
 
-#include "purgeable_mem_base.h"
 #include "thread_pool.h"
 
 namespace OHOS {
 namespace PurgeableMem {
-/* System parameter name */
-const std::string THREAD_POOL_TASK_NUMBER_SYS_NAME = "persist.commonlibrary.purgeable.threadpooltasknum";
-const std::string LRU_CACHE_CAPACITY_SYS_NAME = "persist.commonlibrary.purgeable.lrucachecapacity";
 const std::string THREAD_POOL_NAME = "PurgeThread";
-/* Threadpool task number and lrucache capacity */
-constexpr int32_t THREAD_POOL_TASK_NUMBER = 4;
-constexpr int32_t MIN_THREAD_POOL_TASK_NUMBER = 1;
-constexpr int32_t MAX_THREAD_POOL_TASK_NUMBER = 20;
-constexpr int32_t LRU_CACHE_CAPACITY = 200;
-constexpr int32_t MIN_LRU_CACHE_CAPACITY = 1;
-constexpr int32_t MAX_LRU_CACHE_CAPACITY = 2000;
-
-class LruCache {
-public:
-    /*
-     * Visited: visit the cache entry with the given key.
-     * If the entry is found, it will be move to the most-recent position in the cache.
-    */
-    void Visited(std::shared_ptr<PurgeableMemBase> key);
-
-    /*
-     * Insert: insert the PurgeableMemBase key in the lrucache.
-     * Input: @key: ptr of PurgeableMemBase.
-    */
-    void Insert(std::shared_ptr<PurgeableMemBase> key);
-
-    /*
-     * Erase: erase the PurgeableMemBase key in the lrucache.
-     * Input: @key: ptr of PurgeableMemBase.
-    */
-    void Erase(std::shared_ptr<PurgeableMemBase> key);
-
-    /*
-     * SetCapacity: set the capacity of the lrucache.
-     * Input: the capacity of lrucache.
-    */
-    void SetCapacity(int32_t capacity);
-
-    /*
-     * Clear: clear the resourcePtrList and positionMap of the lrucache.
-    */
-    void Clear();
-
-    using ListSharedPtrIterator = std::list<std::shared_ptr<PurgeableMemBase>>::iterator;
-    std::list<std::shared_ptr<PurgeableMemBase>> GetResourcePtrList() const;
-    std::shared_ptr<PurgeableMemBase> GetLastResourcePtr() const;
-    size_t Size() const;
-
-private:
-    int32_t lruCacheCapacity_;
-    std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList_;
-    std::unordered_map<std::shared_ptr<PurgeableMemBase>, ListSharedPtrIterator> positionMap_;
-};
+class PurgeableMemBase;
 
 class PurgeableResourceManager {
 public:
@@ -103,8 +51,50 @@ private:
     int32_t GetThreadPoolTaskNumFromSysPara() const;
     int32_t GetLruCacheCapacityFromSysPara() const;
     void StartThreadPool();
+    class LruCache {
+    public:
+        /*
+        * Visited: visit the cache entry with the given key.
+        * If the entry is found, it will be move to the most-recent position in the cache.
+        */
+        void Visited(std::shared_ptr<PurgeableMemBase> key);
 
-    mutable std::mutex mutex_;
+        /*
+        * Insert: insert the PurgeableMemBase key in the lrucache.
+        * Input: @key: ptr of PurgeableMemBase.
+        */
+        void Insert(std::shared_ptr<PurgeableMemBase> key);
+
+        /*
+        * Erase: erase the PurgeableMemBase key in the lrucache.
+        * Input: @key: ptr of PurgeableMemBase.
+        */
+        void Erase(std::shared_ptr<PurgeableMemBase> key);
+
+        /*
+        * SetCapacity: set the capacity of the lrucache.
+        * Input: the capacity of lrucache.
+        */
+        void SetCapacity(int32_t capacity);
+
+        /*
+        * Clear: clear the resourcePtrList and positionMap of the lrucache.
+        */
+        void Clear();
+
+        using ListSharedPtrIterator = std::list<std::shared_ptr<PurgeableMemBase>>::iterator;
+        std::list<std::shared_ptr<PurgeableMemBase>> GetResourcePtrList() const;
+        std::shared_ptr<PurgeableMemBase> GetLastResourcePtr() const;
+        size_t Size() const;
+
+    private:
+        int32_t lruCacheCapacity_;
+        std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList_;
+        std::unordered_map<std::shared_ptr<PurgeableMemBase>, ListSharedPtrIterator> positionMap_;
+    };
+    friend class PurgeableMemBase;
+
+    mutable std::mutex lruCacheMutex_;
     LruCache lruCache_;
     ThreadPool threadPool_ {THREAD_POOL_NAME};
     bool isThreadPoolStarted_ {false};
