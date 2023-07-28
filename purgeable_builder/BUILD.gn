@@ -16,7 +16,12 @@ import("//commonlibrary/memory_utils/purgeable_mem_config.gni")
 
 config("purgeable_builder_config") {
   include_dirs = [ "include" ]
-  cflags_cc = [ "-fexceptions" ]
+  cflags_cc = [
+    "-D_FORTIFY_SOURCE = 2",
+    "-fexceptions",
+    "-fstack-protector-all",
+    "-O2",
+  ]
 }
 
 ohos_shared_library("pixelmap_builder") {
