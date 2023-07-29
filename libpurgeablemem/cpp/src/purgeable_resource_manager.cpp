@@ -16,11 +16,26 @@
 #include "hitrace_meter.h"
 #include "parameters.h"
 #include "pm_log.h"
+#include "purgeable_mem_base.h"
 #include "purgeable_resource_manager.h"
 
 namespace OHOS {
 namespace PurgeableMem {
-void LruCache::Visited(std::shared_ptr<PurgeableMemBase> key)
+namespace {
+/* System parameter name */
+const std::string THREAD_POOL_TASK_NUMBER_SYS_NAME = "persist.commonlibrary.purgeable.threadpooltasknum";
+const std::string LRU_CACHE_CAPACITY_SYS_NAME = "persist.commonlibrary.purgeable.lrucachecapacity";
+
+/* Threadpool task number and lrucache capacity */
+constexpr int32_t THREAD_POOL_TASK_NUMBER = 4;
+constexpr int32_t MIN_THREAD_POOL_TASK_NUMBER = 1;
+constexpr int32_t MAX_THREAD_POOL_TASK_NUMBER = 20;
+constexpr int32_t LRU_CACHE_CAPACITY = 200;
+constexpr int32_t MIN_LRU_CACHE_CAPACITY = 1;
+constexpr int32_t MAX_LRU_CACHE_CAPACITY = 2000;
+}
+
+void PurgeableResourceManager::LruCache::Visited(std::shared_ptr<PurgeableMemBase> key)
 {
     if (key == nullptr) {
         return;
@@ -33,7 +48,7 @@ void LruCache::Visited(std::shared_ptr<PurgeableMemBase> key)
     }
 }
 
-void LruCache::Insert(std::shared_ptr<PurgeableMemBase> key)
+void PurgeableResourceManager::LruCache::Insert(std::shared_ptr<PurgeableMemBase> key)
 {
     if (key == nullptr) {
         return;
@@ -61,7 +76,7 @@ void LruCache::Insert(std::shared_ptr<PurgeableMemBase> key)
     }
 }
 
-void LruCache::Erase(std::shared_ptr<PurgeableMemBase> key)
+void PurgeableResourceManager::LruCache::Erase(std::shared_ptr<PurgeableMemBase> key)
 {
     if (key == nullptr) {
         return;
@@ -83,7 +98,7 @@ void LruCache::Erase(std::shared_ptr<PurgeableMemBase> key)
     positionMap_.erase(key);
 }
 
-void LruCache::SetCapacity(int32_t capacity)
+void PurgeableResourceManager::LruCache::SetCapacity(int32_t capacity)
 {
     if (capacity < 0 || capacity > MAX_LRU_CACHE_CAPACITY) {
         PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] SetCapacity FAILED: capacity value is invalid!");
@@ -96,23 +111,23 @@ void LruCache::SetCapacity(int32_t capacity)
     }
 }
 
-void LruCache::Clear()
+void PurgeableResourceManager::LruCache::Clear()
 {
     positionMap_.clear();
     resourcePtrList_.clear();
 }
 
-std::list<std::shared_ptr<PurgeableMemBase>> LruCache::GetResourcePtrList() const
+std::list<std::shared_ptr<PurgeableMemBase>> PurgeableResourceManager::LruCache::GetResourcePtrList() const
 {
     return resourcePtrList_;
 }
 
-std::shared_ptr<PurgeableMemBase> LruCache::GetLastResourcePtr() const
+std::shared_ptr<PurgeableMemBase> PurgeableResourceManager::LruCache::GetLastResourcePtr() const
 {
     return resourcePtrList_.back();
 }
 
-size_t LruCache::Size() const
+size_t PurgeableResourceManager::LruCache::Size() const
 {
     return positionMap_.size();
 }
@@ -131,7 +146,7 @@ PurgeableResourceManager::PurgeableResourceManager()
 
 PurgeableResourceManager::~PurgeableResourceManager()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     if (isThreadPoolStarted_) {
         threadPool_.Stop();
     }
@@ -146,7 +161,7 @@ PurgeableResourceManager &PurgeableResourceManager::GetInstance()
 
 void PurgeableResourceManager::BeginAccessPurgeableMem()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::BeginAccessPurgeableMem");
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
 
@@ -173,7 +188,7 @@ void PurgeableResourceManager::BeginAccessPurgeableMem()
 
 void PurgeableResourceManager::EndAccessPurgeableMem()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::EndAccessPurgeableMem");
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
 
@@ -200,7 +215,7 @@ void PurgeableResourceManager::EndAccessPurgeableMem()
 
 void PurgeableResourceManager::AddResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::AddResource");
     if (resourcePtr == nullptr) {
         FinishTrace(HITRACE_TAG_COMMONLIBRARY);
@@ -215,7 +230,7 @@ void PurgeableResourceManager::AddResource(std::shared_ptr<PurgeableMemBase> res
 
 void PurgeableResourceManager::RemoveResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveResource");
     if (resourcePtr == nullptr) {
         FinishTrace(HITRACE_TAG_COMMONLIBRARY);
@@ -230,7 +245,7 @@ void PurgeableResourceManager::RemoveResource(std::shared_ptr<PurgeableMemBase> 
 
 void PurgeableResourceManager::SetRecentUsedResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     if (resourcePtr == nullptr) {
         return;
     }
@@ -240,19 +255,19 @@ void PurgeableResourceManager::SetRecentUsedResource(std::shared_ptr<PurgeableMe
 
 void PurgeableResourceManager::SetLruCacheCapacity(int32_t capacity)
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     lruCache_.SetCapacity(capacity);
 }
 
 void PurgeableResourceManager::Clear()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     lruCache_.Clear();
 }
 
 void PurgeableResourceManager::RemoveLastResource()
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveLastResource");
     if (lruCache_.Size() == 0) {
         FinishTrace(HITRACE_TAG_COMMONLIBRARY);
@@ -273,7 +288,7 @@ void PurgeableResourceManager::RemoveLastResource()
 
 void PurgeableResourceManager::ShowLruCache() const
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
     int cnt = 0;
     for (auto &resourcePtr : resourcePtrList) {

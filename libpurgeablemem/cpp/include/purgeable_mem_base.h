@@ -21,6 +21,7 @@
 #include <string>
 
 #include "purgeable_mem_builder.h"
+#include "purgeable_resource_manager.h"
 #include "ux_page_table.h"
 
 namespace OHOS {
@@ -119,7 +120,7 @@ protected:
     virtual int GetPinStatus() const;
     virtual void AfterRebuildSucc();
     virtual std::string ToString() const;
-    friend class LruCache;
+    friend class PurgeableResourceManager::LruCache;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

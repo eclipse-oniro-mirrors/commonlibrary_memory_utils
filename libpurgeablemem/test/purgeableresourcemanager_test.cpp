@@ -17,6 +17,7 @@
 
 #define private public
 #define protected public
+#include "purgeable_mem_base.h"
 #include "purgeable_resource_manager.h"
 #undef private
 #undef protected
@@ -25,6 +26,7 @@ namespace OHOS {
 namespace PurgeableMem {
 using namespace testing;
 using namespace testing::ext;
+constexpr int32_t MAX_LRU_CACHE_CAPACITY = 2000;
 
 class PurgeableResourceManagerTest : public testing::Test {
 public:
@@ -54,7 +56,7 @@ HWTEST_F(PurgeableResourceManagerTest, VisitedTest, TestSize.Level1)
 {
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
     int32_t capacity = 1;
-    LruCache lrucache;
+    PurgeableResourceManager::LruCache lrucache;
     lrucache.SetCapacity(capacity);
     lrucache.Visited(nullptr);
     lrucache.Visited(key);
@@ -70,7 +72,7 @@ HWTEST_F(PurgeableResourceManagerTest, InsertTest, TestSize.Level1)
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
     std::shared_ptr<PurgeableMemBase> key1 = std::make_shared<PurgeableMemBase>();
     int32_t capacity = 1;
-    LruCache lrucache;
+    PurgeableResourceManager::LruCache lrucache;
     lrucache.SetCapacity(capacity);
     lrucache.Insert(nullptr);
     lrucache.Insert(key);
@@ -86,7 +88,7 @@ HWTEST_F(PurgeableResourceManagerTest, EraseTest, TestSize.Level1)
 {
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
     int32_t capacity = 1;
-    LruCache lrucache;
+    PurgeableResourceManager::LruCache lrucache;
     lrucache.SetCapacity(capacity);
     lrucache.Clear();
     lrucache.Erase(nullptr);
@@ -103,7 +105,7 @@ HWTEST_F(PurgeableResourceManagerTest, SetCapacityTest, TestSize.Level1)
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
     std::shared_ptr<PurgeableMemBase> key1 = std::make_shared<PurgeableMemBase>();
     int32_t capacity = -1;
-    LruCache lrucache;
+    PurgeableResourceManager::LruCache lrucache;
     lrucache.SetCapacity(capacity);
     capacity = MAX_LRU_CACHE_CAPACITY + 1;
     lrucache.SetCapacity(capacity);
