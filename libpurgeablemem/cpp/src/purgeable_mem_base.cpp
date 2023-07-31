@@ -29,6 +29,7 @@ namespace PurgeableMem {
 #undef LOG_TAG
 #endif
 #define LOG_TAG "PurgeableMem"
+const int MAX_BUILD_TRYTIMES = 3;
 
 static inline size_t RoundUp(size_t val, size_t align)
 {
@@ -50,6 +51,7 @@ bool PurgeableMemBase::BeginRead()
 {
     bool succ = false;
     bool ret = false;
+    int tryTimes = 0;
 
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginRead", return false);
@@ -84,15 +86,17 @@ bool PurgeableMemBase::BeginRead()
             }
             PM_HILOG_DEBUG(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, succ ? "succ" : "fail");
         }
+        tryTimes++;
         rwlock_.unlock();
-        if (!succ) {
+        if (!succ || tryTimes > MAX_BUILD_TRYTIMES) {
             err = PMB_BUILD_ALL_FAIL;
             break;
         }
     }
 
     if (!ret) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut.", __func__, GetPMStateName(err));
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut. tryTime:%{public}d",
+            __func__, GetPMStateName(err), tryTimes);
         Unpin();
     }
     return ret;
