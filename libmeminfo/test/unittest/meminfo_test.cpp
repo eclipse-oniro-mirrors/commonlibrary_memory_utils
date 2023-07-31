@@ -13,10 +13,11 @@
  * limitations under the License.
  */
 
+#include "meminfo.h"
+
 #include <cstdio>
 
 #include "gtest/gtest.h"
-#include "meminfo.h"
 
 namespace OHOS {
 namespace MemInfo {

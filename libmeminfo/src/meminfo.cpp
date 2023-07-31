@@ -13,13 +13,14 @@
  * limitations under the License.
  */
 
+#include "meminfo.h"
+
 #include <fstream>
 #include <sstream>
 #include <v1_0/imemory_tracker_interface.h>
 
 #include "file_ex.h" // LoadStringFromFile
 #include "hilog/log.h"
-#include "meminfo.h"
 
 namespace OHOS {
 namespace MemInfo {
@@ -68,7 +69,7 @@ uint64_t GetRssByPid(const int pid)
     return size;
 }
 
-// get pss from smaps_rollup, include graphics memory
+// get Pss and SwapPss from smaps_rollup, include graphics memory
 uint64_t GetPssByPid(const int pid)
 {
     uint64_t size = 0;
@@ -80,15 +81,14 @@ uint64_t GetPssByPid(const int pid)
     }
 
     std::string content;
-    while (getline(in, content)) {
+    while (in.good() && getline(in, content)) {
         std::string::size_type typePos = content.find(":");
         if (typePos != content.npos) {
             std::string type = content.substr(0, typePos);
-            if (type == "Pss") {
+            if (type == "Pss" || type == "SwapPss") {
                 std::string valueStr = content.substr(typePos + 1);
                 const int base = 10;
-                size = strtoull(valueStr.c_str(), nullptr, base);
-                break;
+                size += strtoull(valueStr.c_str(), nullptr, base);
             }
         }
     }
