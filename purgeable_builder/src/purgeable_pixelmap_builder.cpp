@@ -101,7 +101,7 @@ void SetBuilderToBePurgeable(PixelMap *pixelMap,
             *(static_cast<int *>(pixelMap->GetFd())), pixelMap->GetWritablePixels());
         if (isChanged) {
             pixelMap->SetPurgeableMemPtr(tmpPtr);
-            pixelMap->GetPurgeableMemPtr()->BeginRead();
+            pixelMap->GetPurgeableMemPtr()->BeginReadWithDataLock();
         } else {
             HiviewDFX::HiLog::Error(LABEL, "ChangeAshmemData fail.");
         }
