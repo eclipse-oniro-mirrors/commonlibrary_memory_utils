@@ -17,7 +17,7 @@ import("//commonlibrary/memory_utils/purgeable_mem_config.gni")
 config("purgeable_builder_config") {
   include_dirs = [ "include" ]
   cflags_cc = [
-    "-D_FORTIFY_SOURCE = 2",
+    "-D_FORTIFY_SOURCE=2",
     "-fexceptions",
     "-fstack-protector-all",
     "-O2",
@@ -25,15 +25,9 @@ config("purgeable_builder_config") {
 }
 
 ohos_shared_library("pixelmap_builder") {
-  sources = []
-  include_dirs = []
-  defines = []
-
-  if (purgeable_ashmem_enable) {
-    sources += [ "src/purgeable_pixelmap_builder.cpp" ]
-    include_dirs += [ "include/purgeable_pixelmap_builder.h" ]
-    defines += [ "IMAGE_PURGEABLE_PIXELMAP" ]
-  }
+  sources = [ "src/purgeable_pixelmap_builder.cpp" ]
+  include_dirs = [ "include/purgeable_pixelmap_builder.h" ]
+  defines = [ "IMAGE_PURGEABLE_PIXELMAP" ]
 
   deps = [ "../libpurgeablemem:libpurgeablemem" ]
   external_deps = [
