@@ -95,6 +95,7 @@ private:
     friend class PurgeableMemBase;
 
     mutable std::mutex lruCacheMutex_;
+    mutable std::mutex threadPoolMutex_;
     LruCache lruCache_;
     ThreadPool threadPool_ {THREAD_POOL_NAME};
     bool isThreadPoolStarted_ {false};

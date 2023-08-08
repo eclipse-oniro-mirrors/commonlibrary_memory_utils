@@ -310,6 +310,7 @@ int32_t PurgeableResourceManager::GetLruCacheCapacityFromSysPara() const
 
 void PurgeableResourceManager::StartThreadPool()
 {
+    std::lock_guard<std::mutex> lock(threadPoolMutex_);
     if (isThreadPoolStarted_) {
         return;
     }
