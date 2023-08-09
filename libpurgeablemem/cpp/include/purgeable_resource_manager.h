@@ -51,6 +51,9 @@ private:
     int32_t GetThreadPoolTaskNumFromSysPara() const;
     int32_t GetLruCacheCapacityFromSysPara() const;
     void StartThreadPool();
+    void ChangeDataValid(std::shared_ptr<PurgeableMemBase> resourcePtr, bool isVaild) const;
+    void AddResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr);
+    void RemoveResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr);
     class LruCache {
     public:
         /*
@@ -92,7 +95,6 @@ private:
         std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList_;
         std::unordered_map<std::shared_ptr<PurgeableMemBase>, ListSharedPtrIterator> positionMap_;
     };
-    friend class PurgeableMemBase;
 
     mutable std::mutex lruCacheMutex_;
     mutable std::mutex threadPoolMutex_;

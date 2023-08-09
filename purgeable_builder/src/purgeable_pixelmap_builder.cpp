@@ -165,9 +165,7 @@ bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, std::unique_
 bool MakePixelMapToBePurgeable(std::unique_ptr<PixelMap> &pixelMap, const int fd,
     const SourceOptions &opts, DecodeOptions &decodeOpts)
 {
-    auto task = std::bind(MakePixelMapToBePurgeableByFd, pixelMap.get(), fd, opts, decodeOpts);
-    PurgeableMem::PurgeableResourceManager::GetInstance().AddTaskToThreadPool(task);
-    return true;
+    return MakePixelMapToBePurgeableByFd(pixelMap.get(), fd, opts, decodeOpts);
 }
 
 bool MakePixelMapToBePurgeableByFd(PixelMap *pixelMap, const int fd, const SourceOptions &opts,
