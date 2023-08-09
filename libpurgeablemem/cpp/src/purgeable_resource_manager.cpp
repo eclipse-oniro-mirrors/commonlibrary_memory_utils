@@ -54,9 +54,6 @@ void PurgeableResourceManager::LruCache::Insert(std::shared_ptr<PurgeableMemBase
         return;
     }
 
-    std::lock_guard<std::mutex> dataLock(key->dataLock_);
-    key->SetDataValid(true);
-
     auto resourcePtrIter = positionMap_.find(key);
     if (resourcePtrIter != positionMap_.end()) {
         resourcePtrList_.splice(resourcePtrList_.begin(), resourcePtrList_, resourcePtrIter->second);
@@ -82,16 +79,9 @@ void PurgeableResourceManager::LruCache::Erase(std::shared_ptr<PurgeableMemBase>
         return;
     }
 
-    std::lock_guard<std::mutex> dataLock(key->dataLock_);
-    key->SetDataValid(false);
-
     auto resourcePtrIter = positionMap_.find(key);
     if (resourcePtrIter == positionMap_.end()) {
         return;
-    }
-
-    if (key->GetPinStatus() == 0) {
-        key->Pin();
     }
 
     resourcePtrList_.erase(resourcePtrIter->second);
@@ -161,11 +151,17 @@ PurgeableResourceManager &PurgeableResourceManager::GetInstance()
 
 void PurgeableResourceManager::BeginAccessPurgeableMem()
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
-    StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::BeginAccessPurgeableMem");
+    StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::BeginAccessPurgeableMem");
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
 
     if (resourcePtrList.size() == 0) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    if (resourcePtrList.size() == 0) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
@@ -181,18 +177,24 @@ void PurgeableResourceManager::BeginAccessPurgeableMem()
         threadPool_.AddTask(task);
     }
 
-    FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] BeginAccessPurgeableMem list size: %{public}zu",
         lruCache_.Size());
 }
 
 void PurgeableResourceManager::EndAccessPurgeableMem()
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
-    StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::EndAccessPurgeableMem");
+    StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::EndAccessPurgeableMem");
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
 
     if (resourcePtrList.size() == 0) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    if (resourcePtrList.size() == 0) {
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
@@ -208,37 +210,71 @@ void PurgeableResourceManager::EndAccessPurgeableMem()
         threadPool_.AddTask(task);
     }
 
-    FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] EndAccessPurgeableMem list size: %{public}zu",
         lruCache_.Size());
 }
 
+void PurgeableResourceManager::ChangeDataValid(std::shared_ptr<PurgeableMemBase> resourcePtr, bool isVaild) const
+{
+    StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::ChangeDataValid");
+    std::lock_guard<std::mutex> dataLock(resourcePtr->dataLock_);
+    resourcePtr->SetDataValid(isVaild);
+    if (!isVaild && resourcePtr->GetPinStatus() == 0) {
+        resourcePtr->Pin();
+    }
+    FinishTrace(HITRACE_TAG_ZIMAGE);
+}
+
 void PurgeableResourceManager::AddResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
+    auto task = [this, resourcePtr] () {
+        if (resourcePtr == nullptr) {
+            return;
+        }
+        AddResourceInner(resourcePtr);
+    };
+    AddTaskToThreadPool(task);
+}
+
+void PurgeableResourceManager::AddResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr)
+{
+    StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::AddResource");
     std::lock_guard<std::mutex> lock(lruCacheMutex_);
-    StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::AddResource");
     if (resourcePtr == nullptr) {
-        FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
     lruCache_.Insert(resourcePtr);
-    FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] AddResource resourcePtr: 0x%{public}lx, "
         "list size: %{public}zu", (long)resourcePtr.get(), lruCache_.Size());
 }
 
 void PurgeableResourceManager::RemoveResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
+    ChangeDataValid(resourcePtr, false);
+    auto task = [this, resourcePtr] () {
+        if (resourcePtr == nullptr) {
+            return;
+        }
+        RemoveResourceInner(resourcePtr);
+    };
+    AddTaskToThreadPool(task);
+}
+
+void PurgeableResourceManager::RemoveResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr)
+{
+    StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveResource");
     std::lock_guard<std::mutex> lock(lruCacheMutex_);
-    StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveResource");
     if (resourcePtr == nullptr) {
-        FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
     lruCache_.Erase(resourcePtr);
-    FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] RemoveResource resourcePtr: 0x%{public}lx, "
         "list size: %{public}zu", (long)resourcePtr.get(), lruCache_.Size());
 }
@@ -268,20 +304,20 @@ void PurgeableResourceManager::Clear()
 void PurgeableResourceManager::RemoveLastResource()
 {
     std::lock_guard<std::mutex> lock(lruCacheMutex_);
-    StartTrace(HITRACE_TAG_COMMONLIBRARY, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveLastResource");
+    StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveLastResource");
     if (lruCache_.Size() == 0) {
-        FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
     std::shared_ptr<PurgeableMemBase> resourcePtr = lruCache_.GetLastResourcePtr();
     if (resourcePtr == nullptr) {
-        FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+        FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
     lruCache_.Erase(resourcePtr);
-    FinishTrace(HITRACE_TAG_COMMONLIBRARY);
+    FinishTrace(HITRACE_TAG_ZIMAGE);
     PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] RemoveLastResource resourcePtr: 0x%{public}lx, "
         "list size: %{public}zu", (long)resourcePtr.get(), lruCache_.Size());
 }

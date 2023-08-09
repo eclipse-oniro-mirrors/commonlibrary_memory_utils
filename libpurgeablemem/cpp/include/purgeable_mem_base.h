@@ -120,7 +120,7 @@ protected:
     virtual int GetPinStatus() const;
     virtual void AfterRebuildSucc();
     virtual std::string ToString() const;
-    friend class PurgeableResourceManager::LruCache;
+    friend class PurgeableResourceManager;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */
