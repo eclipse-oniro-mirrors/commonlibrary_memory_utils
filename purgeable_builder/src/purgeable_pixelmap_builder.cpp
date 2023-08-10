@@ -40,8 +40,8 @@ const std::string SYSTEM_PARAM_PIXELMAP_THRESHOLD_HEIGHT = "persist.memmgr.purge
 const std::string SYSTEM_PARAM_PIXELMAP_THRESHOLD_WIDGHT = "persist.memmgr.purgeable.pixelmap.threshold.widght";
 
 PurgeablePixelMapBuilder::PurgeablePixelMapBuilder(uint32_t index, std::unique_ptr<ImageSource> &imageSource,
-    DecodeOptions opts, PixelMap *pixelMap)
-    : index_(index), opts_(opts), pixelMap_(pixelMap), imageSource_(move(imageSource)) {}
+    DecodeOptions opts)
+    : index_(index), opts_(opts), imageSource_(move(imageSource)) {}
 
 bool PurgeablePixelMapBuilder::Build(void *data, size_t size)
 {
@@ -53,14 +53,14 @@ bool PurgeablePixelMapBuilder::Build(void *data, size_t size)
 
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableBuilder::PixelMapPurgeableMemBuilder::Build");
     std::unique_ptr<PixelMap> pixelMap = imageSource_->CreatePixelMap(index_, opts_, errorCode);
-    if (pixelMap == nullptr || pixelMap_ == nullptr) {
+    if (pixelMap == nullptr || data == nullptr) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return false;
     }
 
     StartTrace(HITRACE_TAG_ZIMAGE, ("OHOS::PurgeableBuilder::PixelMapPurgeableMemBuilder::CopyData " +
                                     std::to_string(size)));
-    if (memcpy_s((char *)pixelMap_->GetPixels(), size, (char *)pixelMap->GetPixels(), size)) {
+    if (memcpy_s((char *)data, size, (char *)pixelMap->GetPixels(), size)) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return false;
     }
@@ -208,7 +208,7 @@ bool MakePixelMapToBePurgeableBySrc(PixelMap *pixelMap,
     }
 
     std::unique_ptr<PurgeableMem::PurgeableMemBuilder> purgeableMemBuilder =
-        std::make_unique<PurgeablePixelMapBuilder>(0, backupImgSrc4Rebuild, decodeOpts, pixelMap);
+        std::make_unique<PurgeablePixelMapBuilder>(0, backupImgSrc4Rebuild, decodeOpts);
     SetBuilderToBePurgeable(pixelMap, purgeableMemBuilder);
 
     if (pixelMap->IsPurgeable()) {

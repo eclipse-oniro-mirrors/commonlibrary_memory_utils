@@ -32,7 +32,7 @@ using namespace OHOS::Media;
 class PurgeablePixelMapBuilder : public PurgeableMem::PurgeableMemBuilder {
 public:
     PurgeablePixelMapBuilder(uint32_t index, std::unique_ptr<ImageSource> &imageSource,
-        DecodeOptions opts, PixelMap *pixelMap);
+        DecodeOptions opts);
 
     bool Build(void *data, size_t size) override;
 
@@ -41,7 +41,6 @@ public:
 private:
     uint32_t index_;
     DecodeOptions opts_;
-    PixelMap *pixelMap_;
     std::unique_ptr<ImageSource> imageSource_;
 }; // class PurgeablePixelMapBuilder
 

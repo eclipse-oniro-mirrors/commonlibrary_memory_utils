@@ -159,19 +159,55 @@ void PurgeableMemBase::EndWrite()
 
 bool PurgeableMemBase::BeginReadWithDataLock()
 {
-    std::lock_guard<std::mutex> lock(dataLock_);
-
-    if (isDataValid_) {
-        return BeginRead();
+    if (!isDataValid_) {
+        return false;
     }
 
-    return false;
+    std::lock_guard<std::mutex> lock(dataLock_);
+    if (!isDataValid_) {
+        return false;
+    }
+
+    bool succ = false;
+    bool ret = false;
+    int tryTimes = 0;
+
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
+    IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginRead", return false);
+    IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginRead", return false);
+    Pin();
+    PMState err = PM_OK;
+    while (true) {
+        if (!IfNeedRebuild_()) {
+            PM_HILOG_DEBUG(LOG_CORE, "%{public}s: not purged, return true. MAP_PUR=0x%{public}x",
+                __func__, MAP_PURGEABLE);
+            ret = true;
+            break;
+        }
+
+        succ = BuildContent_();
+        if (succ) {
+            AfterRebuildSucc();
+        }
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, succ ? "succ" : "fail");
+
+        tryTimes++;
+        if (!succ || tryTimes > MAX_BUILD_TRYTIMES) {
+            err = PMB_BUILD_ALL_FAIL;
+            break;
+        }
+    }
+
+    if (!ret) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut. tryTime:%{public}d",
+            __func__, GetPMStateName(err), tryTimes);
+        Unpin();
+    }
+    return ret;
 }
 
 void PurgeableMemBase::EndReadWithDataLock()
 {
-    std::lock_guard<std::mutex> lock(dataLock_);
-
     if (isDataValid_) {
         EndRead();
     }
