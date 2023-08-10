@@ -163,7 +163,7 @@ bool PurgeableMemBase::BeginReadWithDataLock()
         return false;
     }
 
-    std::lock_guard<std::mutex> lock(dataLock_);
+    std::lock_guard<ffrt::mutex> lock(dataLock_);
     if (!isDataValid_) {
         return false;
     }

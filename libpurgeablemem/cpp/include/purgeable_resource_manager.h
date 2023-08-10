@@ -22,7 +22,7 @@
 #include <unordered_map>
 
 #include "thread_pool.h"
-
+#include "ffrt.h"
 namespace OHOS {
 namespace PurgeableMem {
 const std::string THREAD_POOL_NAME = "PurgeThread";

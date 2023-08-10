@@ -23,6 +23,7 @@
 #include "purgeable_mem_builder.h"
 #include "purgeable_resource_manager.h"
 #include "ux_page_table.h"
+#include "ffrt.h"
 
 namespace OHOS {
 namespace PurgeableMem {
@@ -106,7 +107,7 @@ public:
 
 protected:
     void *dataPtr_ = nullptr;
-    std::mutex dataLock_;
+    ffrt::mutex dataLock_;
     bool isDataValid_ {true};
     size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;

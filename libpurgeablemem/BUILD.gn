@@ -16,10 +16,12 @@ import("//build/ohos/ndk/ndk.gni")
 
 config("libpurgeable_config") {
   include_dirs = [
+    "include",
     "c/include",
     "common/include",
     "cpp/include",
     "interfaces/kits/c",
+    "//foundation/resourceschedule/ffrt/interfaces/kits/",
   ]
   cflags_cc = [ "-fexceptions" ]
 }
@@ -38,9 +40,9 @@ ohos_shared_library("libpurgeablemem") {
     "cpp/src/purgeable_resource_manager.cpp",
     "cpp/src/ux_page_table.cpp",
   ]
-  include_dirs = [ "include" ]
   external_deps = [
     "c_utils:utils",
+    "ffrt:libffrt",
     "hilog:libhilog",
     "hitrace:hitrace_meter",
     "init:libbegetutil",
