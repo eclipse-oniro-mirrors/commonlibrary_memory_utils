@@ -218,7 +218,7 @@ void PurgeableResourceManager::EndAccessPurgeableMem()
 void PurgeableResourceManager::ChangeDataValid(std::shared_ptr<PurgeableMemBase> resourcePtr, bool isVaild) const
 {
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::ChangeDataValid");
-    std::lock_guard<std::mutex> dataLock(resourcePtr->dataLock_);
+    std::lock_guard<ffrt::mutex> dataLock(resourcePtr->dataLock_);
     resourcePtr->SetDataValid(isVaild);
     if (!isVaild && resourcePtr->GetPinStatus() == 0) {
         resourcePtr->Pin();

@@ -24,7 +24,8 @@
         "hitrace",
         "init",
         "ipc",
-        "image_framework"
+        "image_framework",
+        "ffrt"
       ],
       "third_party": []
     },
