@@ -21,8 +21,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "thread_pool.h"
 #include "ffrt.h"
+
 namespace OHOS {
 namespace PurgeableMem {
 const std::string THREAD_POOL_NAME = "PurgeThread";
@@ -41,7 +41,6 @@ public:
     void RemoveResource(std::shared_ptr<PurgeableMemBase> resourcePtr);
     void SetRecentUsedResource(std::shared_ptr<PurgeableMemBase> resourcePtr);
     void SetLruCacheCapacity(int32_t capacity);
-    void AddTaskToThreadPool(const std::function<void()> &f);
     void Clear();
     void RemoveLastResource();
     void ShowLruCache() const;
@@ -50,7 +49,6 @@ private:
     PurgeableResourceManager();
     int32_t GetThreadPoolTaskNumFromSysPara() const;
     int32_t GetLruCacheCapacityFromSysPara() const;
-    void StartThreadPool();
     void ChangeDataValid(std::shared_ptr<PurgeableMemBase> resourcePtr, bool isVaild) const;
     void AddResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr);
     void RemoveResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr);
@@ -96,11 +94,8 @@ private:
         std::unordered_map<std::shared_ptr<PurgeableMemBase>, ListSharedPtrIterator> positionMap_;
     };
 
-    mutable std::mutex lruCacheMutex_;
-    mutable std::mutex threadPoolMutex_;
+    mutable ffrt::mutex lruCacheMutex_;
     LruCache lruCache_;
-    ThreadPool threadPool_ {THREAD_POOL_NAME};
-    bool isThreadPoolStarted_ {false};
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

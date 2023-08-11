@@ -23,13 +23,7 @@ namespace OHOS {
 namespace PurgeableMem {
 namespace {
 /* System parameter name */
-const std::string THREAD_POOL_TASK_NUMBER_SYS_NAME = "persist.commonlibrary.purgeable.threadpooltasknum";
 const std::string LRU_CACHE_CAPACITY_SYS_NAME = "persist.commonlibrary.purgeable.lrucachecapacity";
-
-/* Threadpool task number and lrucache capacity */
-constexpr int32_t THREAD_POOL_TASK_NUMBER = 4;
-constexpr int32_t MIN_THREAD_POOL_TASK_NUMBER = 1;
-constexpr int32_t MAX_THREAD_POOL_TASK_NUMBER = 20;
 constexpr int32_t LRU_CACHE_CAPACITY = 200;
 constexpr int32_t MIN_LRU_CACHE_CAPACITY = 1;
 constexpr int32_t MAX_LRU_CACHE_CAPACITY = 2000;
@@ -130,16 +124,12 @@ PurgeableResourceManager::PurgeableResourceManager()
         lruCacheCapacity = LRU_CACHE_CAPACITY;
     }
     lruCache_.SetCapacity(lruCacheCapacity);
-    isThreadPoolStarted_ = false;
     PM_HILOG_DEBUG(LOG_CORE, "PurgeableResourceManager init. lruCacheCapacity is: %{public}d", lruCacheCapacity);
 }
 
 PurgeableResourceManager::~PurgeableResourceManager()
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
-    if (isThreadPoolStarted_) {
-        threadPool_.Stop();
-    }
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     lruCache_.Clear();
 }
 
@@ -159,22 +149,19 @@ void PurgeableResourceManager::BeginAccessPurgeableMem()
         return;
     }
 
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     if (resourcePtrList.size() == 0) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
-    if (!isThreadPoolStarted_) {
-        StartThreadPool();
-    }
-
     for (auto &resourcePtr : resourcePtrList) {
-        if (resourcePtr == nullptr) {
-            continue;
-        }
-        auto task = std::bind(&PurgeableMemBase::BeginReadWithDataLock, resourcePtr);
-        threadPool_.AddTask(task);
+        ffrt::submit([this, resourcePtr] {
+            if (resourcePtr == nullptr) {
+                return;
+            }
+            resourcePtr->BeginReadWithDataLock();
+        });
     }
 
     FinishTrace(HITRACE_TAG_ZIMAGE);
@@ -192,22 +179,19 @@ void PurgeableResourceManager::EndAccessPurgeableMem()
         return;
     }
 
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     if (resourcePtrList.size() == 0) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
     }
 
-    if (!isThreadPoolStarted_) {
-        StartThreadPool();
-    }
-
     for (auto &resourcePtr : resourcePtrList) {
-        if (resourcePtr == nullptr) {
-            continue;
-        }
-        auto task = std::bind(&PurgeableMemBase::EndReadWithDataLock, resourcePtr);
-        threadPool_.AddTask(task);
+        ffrt::submit([this, resourcePtr] {
+            if (resourcePtr == nullptr) {
+                return;
+            }
+            resourcePtr->EndReadWithDataLock();
+        });
     }
 
     FinishTrace(HITRACE_TAG_ZIMAGE);
@@ -228,19 +212,18 @@ void PurgeableResourceManager::ChangeDataValid(std::shared_ptr<PurgeableMemBase>
 
 void PurgeableResourceManager::AddResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
-    auto task = [this, resourcePtr] () {
+    ffrt::submit([this, resourcePtr] {
         if (resourcePtr == nullptr) {
             return;
         }
         AddResourceInner(resourcePtr);
-    };
-    AddTaskToThreadPool(task);
+    });
 }
 
 void PurgeableResourceManager::AddResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::AddResource");
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     if (resourcePtr == nullptr) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
@@ -255,19 +238,18 @@ void PurgeableResourceManager::AddResourceInner(std::shared_ptr<PurgeableMemBase
 void PurgeableResourceManager::RemoveResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
     ChangeDataValid(resourcePtr, false);
-    auto task = [this, resourcePtr] () {
+    ffrt::submit([this, resourcePtr] {
         if (resourcePtr == nullptr) {
             return;
         }
         RemoveResourceInner(resourcePtr);
-    };
-    AddTaskToThreadPool(task);
+    });
 }
 
 void PurgeableResourceManager::RemoveResourceInner(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveResource");
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     if (resourcePtr == nullptr) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
         return;
@@ -275,13 +257,11 @@ void PurgeableResourceManager::RemoveResourceInner(std::shared_ptr<PurgeableMemB
 
     lruCache_.Erase(resourcePtr);
     FinishTrace(HITRACE_TAG_ZIMAGE);
-    PM_HILOG_DEBUG(LOG_CORE, "[PurgeableResourceManager] RemoveResource resourcePtr: 0x%{public}lx, "
-        "list size: %{public}zu", (long)resourcePtr.get(), lruCache_.Size());
 }
 
 void PurgeableResourceManager::SetRecentUsedResource(std::shared_ptr<PurgeableMemBase> resourcePtr)
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     if (resourcePtr == nullptr) {
         return;
     }
@@ -291,19 +271,19 @@ void PurgeableResourceManager::SetRecentUsedResource(std::shared_ptr<PurgeableMe
 
 void PurgeableResourceManager::SetLruCacheCapacity(int32_t capacity)
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     lruCache_.SetCapacity(capacity);
 }
 
 void PurgeableResourceManager::Clear()
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     lruCache_.Clear();
 }
 
 void PurgeableResourceManager::RemoveLastResource()
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     StartTrace(HITRACE_TAG_ZIMAGE, "OHOS::PurgeableMem::PurgeableResourceManager::RemoveLastResource");
     if (lruCache_.Size() == 0) {
         FinishTrace(HITRACE_TAG_ZIMAGE);
@@ -324,7 +304,7 @@ void PurgeableResourceManager::RemoveLastResource()
 
 void PurgeableResourceManager::ShowLruCache() const
 {
-    std::lock_guard<std::mutex> lock(lruCacheMutex_);
+    std::lock_guard<ffrt::mutex> lock(lruCacheMutex_);
     std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList = lruCache_.GetResourcePtrList();
     int cnt = 0;
     for (auto &resourcePtr : resourcePtrList) {
@@ -334,41 +314,9 @@ void PurgeableResourceManager::ShowLruCache() const
     }
 }
 
-int32_t PurgeableResourceManager::GetThreadPoolTaskNumFromSysPara() const
-{
-    return system::GetIntParameter<int32_t>(THREAD_POOL_TASK_NUMBER_SYS_NAME, THREAD_POOL_TASK_NUMBER);
-}
-
 int32_t PurgeableResourceManager::GetLruCacheCapacityFromSysPara() const
 {
     return system::GetIntParameter<int32_t>(LRU_CACHE_CAPACITY_SYS_NAME, LRU_CACHE_CAPACITY);
-}
-
-void PurgeableResourceManager::StartThreadPool()
-{
-    std::lock_guard<std::mutex> lock(threadPoolMutex_);
-    if (isThreadPoolStarted_) {
-        return;
-    }
-
-    int32_t threadPoolTaskNum = GetThreadPoolTaskNumFromSysPara();
-    if (threadPoolTaskNum < MIN_THREAD_POOL_TASK_NUMBER || threadPoolTaskNum > MAX_THREAD_POOL_TASK_NUMBER) {
-        PM_HILOG_ERROR(LOG_CORE, "[PurgeableResourceManager] Get error threadpool task number from system parameter.");
-        threadPoolTaskNum = THREAD_POOL_TASK_NUMBER;
-    }
-
-    threadPool_.Start(threadPoolTaskNum);
-    isThreadPoolStarted_ = true;
-    PM_HILOG_DEBUG(LOG_CORE, "StartThreadPool finish.");
-}
-
-void PurgeableResourceManager::AddTaskToThreadPool(const std::function<void()> &f)
-{
-    if (!isThreadPoolStarted_) {
-        StartThreadPool();
-    }
-
-    threadPool_.AddTask(f);
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

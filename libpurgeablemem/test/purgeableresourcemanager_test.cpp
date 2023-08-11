@@ -125,7 +125,6 @@ HWTEST_F(PurgeableResourceManagerTest, BeginAccessPurgeableMemTest, TestSize.Lev
     PurgeableResourceManager::GetInstance().BeginAccessPurgeableMem();
     PurgeableResourceManager::GetInstance().lruCache_.Insert(key);
     PurgeableResourceManager::GetInstance().BeginAccessPurgeableMem();
-    PurgeableResourceManager::GetInstance().isThreadPoolStarted_ = true;
     PurgeableResourceManager::GetInstance().BeginAccessPurgeableMem();
     EXPECT_NE(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
     PurgeableResourceManager::GetInstance().Clear();
@@ -137,7 +136,6 @@ HWTEST_F(PurgeableResourceManagerTest, EndAccessPurgeableMemTest, TestSize.Level
     PurgeableResourceManager::GetInstance().EndAccessPurgeableMem();
     PurgeableResourceManager::GetInstance().lruCache_.Insert(key);
     PurgeableResourceManager::GetInstance().EndAccessPurgeableMem();
-    PurgeableResourceManager::GetInstance().isThreadPoolStarted_ = true;
     PurgeableResourceManager::GetInstance().EndAccessPurgeableMem();
     EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 1);
     PurgeableResourceManager::GetInstance().Clear();
@@ -192,8 +190,6 @@ HWTEST_F(PurgeableResourceManagerTest, RemoveLastResourceTest, TestSize.Level1)
     PurgeableResourceManager::GetInstance().RemoveLastResource();
     PurgeableResourceManager::GetInstance().ShowLruCache();
     EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
-    PurgeableResourceManager::GetInstance().StartThreadPool();
-    PurgeableResourceManager::GetInstance().StartThreadPool();
 }
 }
 }
