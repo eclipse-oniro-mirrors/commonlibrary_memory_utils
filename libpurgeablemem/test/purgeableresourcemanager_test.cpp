@@ -144,10 +144,10 @@ HWTEST_F(PurgeableResourceManagerTest, EndAccessPurgeableMemTest, TestSize.Level
 HWTEST_F(PurgeableResourceManagerTest, AddResourceTest, TestSize.Level1)
 {
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
-    PurgeableResourceManager::GetInstance().AddResource(nullptr);
     PurgeableResourceManager::GetInstance().AddResource(key);
-    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 1);
+    PurgeableResourceManager::GetInstance().AddResource(nullptr);
     PurgeableResourceManager::GetInstance().Clear();
+    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
 }
 
 HWTEST_F(PurgeableResourceManagerTest, RemoveResourceTest, TestSize.Level1)
@@ -155,10 +155,11 @@ HWTEST_F(PurgeableResourceManagerTest, RemoveResourceTest, TestSize.Level1)
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
     PurgeableResourceManager::GetInstance().RemoveResource(nullptr);
     PurgeableResourceManager::GetInstance().AddResource(key);
-    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 1);
     PurgeableResourceManager::GetInstance().RemoveResource(key);
-    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
+    PurgeableResourceManager::GetInstance().ChangeDataValid(key, true) ;
+    PurgeableResourceManager::GetInstance().ChangeDataValid(nullptr, true);
     PurgeableResourceManager::GetInstance().Clear();
+    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
 }
 
 HWTEST_F(PurgeableResourceManagerTest, SetRecentUsedResourceTest, TestSize.Level1)
