@@ -75,6 +75,7 @@ HWTEST_F(PurgeableCTest, MultiObjCreateTest, TestSize.Level1)
 {
     const char alphabetFinal[] = "BBCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     struct AlphabetInitParam initPara = {'A', 'Z'};
+    PurgMemCreate(0, InitAlphabet, &initPara);
     struct PurgMem *pobj1 = PurgMemCreate(27, InitAlphabet, &initPara);
     LoopPrintAlphabet(pobj1, 1);
     struct AlphabetModifyParam a2b = {'A', 'B'};
