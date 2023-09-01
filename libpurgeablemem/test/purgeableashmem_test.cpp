@@ -25,8 +25,13 @@
 
 #include "gtest/gtest.h"
 #include "ashmem.h"
-#include "purgeable_ashmem.h"
 #include "securec.h"
+
+#define private public
+#define protected public
+#include "purgeable_ashmem.h"
+#undef private
+#undef protected
 
 namespace OHOS {
 namespace PurgeableMem {
@@ -552,6 +557,71 @@ HWTEST_F(PurgeableAshmemTest, InvalidInputBuilderTest, TestSize.Level1)
     delete pobj;
     pobj = nullptr;
     EXPECT_EQ(ret, false);
+}
+
+HWTEST_F(PurgeableAshmemTest, IsPurgedTest, TestSize.Level1)
+{
+    std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
+    std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
+    PurgeableAshMem pobj(std::move(builder1));
+    pobj.isSupport_ = 0;
+    EXPECT_EQ(pobj.IsPurged(), false);
+    EXPECT_EQ(pobj.Pin(), true);
+    EXPECT_EQ(pobj.Unpin(), true);
+    EXPECT_EQ(pobj.GetPinStatus(), false);
+    pobj.isSupport_ = 1;
+    pobj.ashmemFd_ = 0;
+    EXPECT_EQ(pobj.Pin(), false);
+    EXPECT_EQ(pobj.Unpin(), false);
+    pobj.dataSizeInput_ = 0;
+    EXPECT_EQ(pobj.CreatePurgeableData_(), false);
+    pobj.dataPtr_ = nullptr;
+    ModifyPurgMemByBuilder(&pobj, std::move(modA2B));
+    pobj.isDataValid_ = false;
+    pobj.BeginReadWithDataLock();
+    pobj.isDataValid_ = true;
+    pobj.EndReadWithDataLock();
+}
+
+HWTEST_F(PurgeableAshmemTest, GetPinStatusTest, TestSize.Level1)
+{
+    std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
+    PurgeableAshMem pobj(std::move(builder1));
+    pobj.isSupport_ = 1;
+    EXPECT_NE(pobj.GetPinStatus(), 0);
+    pobj.isSupport_ = 0;
+    EXPECT_EQ(pobj.GetPinStatus(), 0);
+}
+
+HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
+{
+    std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
+    PurgeableAshMem pobj1(27, std::move(builder1));
+    PurgeableAshMem pobj2(27, std::move(builder1));
+    PurgeableAshMem pobj3(27, std::move(builder1));
+    PurgeableAshMem pobj4(27, std::move(builder1));
+    size_t newSize = 0;
+    size_t size = 123;
+    int fd = 5;
+    int intdata = 12345;
+    void *data = &intdata;
+    size_t page_size = 1 << 12;
+    pobj1.ResizeData(newSize);
+    newSize = 1;
+    pobj1.ResizeData(newSize);
+    pobj2.ashmemFd_ = 0;
+    pobj2.ResizeData(newSize);
+    pobj2.dataPtr_ = data;
+    pobj2.ResizeData(newSize);
+
+    pobj3.ChangeAshmemData(size, fd, data);
+    pobj4.ashmemFd_ = 0;
+    pobj4.ChangeAshmemData(size, fd, data);
+    pobj4.dataPtr_ = data;
+    pobj4.ChangeAshmemData(size, fd, data);
+    size = ((pobj4.dataSizeInput_ + page_size - 1) / page_size) * page_size;
+    fd = AshmemCreate("PurgeableAshmem", size);
+    EXPECT_EQ(pobj4.ChangeAshmemData(size, fd, data), true);
 }
 
 void LoopPrintAlphabet(PurgeableAshMem *pdata, unsigned int loopCount)
