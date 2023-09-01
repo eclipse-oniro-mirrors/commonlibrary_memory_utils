@@ -605,7 +605,7 @@ HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
     int fd = 5;
     int intdata = 12345;
     void *data = &intdata;
-    size_t page_size = 1 << 12;
+    size_t pageSize = 1 << 12;
     pobj1.ResizeData(newSize);
     newSize = 1;
     pobj1.ResizeData(newSize);
@@ -619,7 +619,7 @@ HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
     pobj4.ChangeAshmemData(size, fd, data);
     pobj4.dataPtr_ = data;
     pobj4.ChangeAshmemData(size, fd, data);
-    size = ((pobj4.dataSizeInput_ + page_size - 1) / page_size) * page_size;
+    size = ((pobj4.dataSizeInput_ + pageSize - 1) / pageSize) * pageSize;
     fd = AshmemCreate("PurgeableAshmem", size);
     EXPECT_EQ(pobj4.ChangeAshmemData(size, fd, data), true);
 }
