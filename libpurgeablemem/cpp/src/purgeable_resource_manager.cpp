@@ -57,7 +57,7 @@ void PurgeableResourceManager::LruCache::Insert(std::shared_ptr<PurgeableMemBase
 
     resourcePtrList_.emplace_front(key);
     positionMap_.emplace(key, resourcePtrList_.begin());
-    if (static_cast<int32_t>(resourcePtrList_.size()) > lruCacheCapacity_) {
+    if (resourcePtrList_.size() > lruCacheCapacity_) {
         auto popResource = resourcePtrList_.back();
         if (popResource->GetPinStatus() == 0) {
             popResource->Pin();
@@ -90,7 +90,7 @@ void PurgeableResourceManager::LruCache::SetCapacity(int32_t capacity)
     }
 
     lruCacheCapacity_ = capacity;
-    while (lruCacheCapacity_ < static_cast<int32_t>(Size())) {
+    while (lruCacheCapacity_ < Size()) {
         Erase(resourcePtrList_.back());
     }
 }
