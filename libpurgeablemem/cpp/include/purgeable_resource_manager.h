@@ -89,7 +89,7 @@ private:
         size_t Size() const;
 
     private:
-        int32_t lruCacheCapacity_;
+        size_t lruCacheCapacity_ = 0;
         std::list<std::shared_ptr<PurgeableMemBase>> resourcePtrList_;
         std::unordered_map<std::shared_ptr<PurgeableMemBase>, ListSharedPtrIterator> positionMap_;
     };
