@@ -65,7 +65,10 @@ PurgeableAshMem::PurgeableAshMem(size_t dataSize, std::unique_ptr<PurgeableMemBu
     dataSizeInput_ = dataSize;
     IF_NULL_LOG_ACTION(builder, "%{public}s: input builder nullptr", return);
 
-    CreatePurgeableData_();
+    if (!CreatePurgeableData_()) {
+        PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
+        return;
+    }
     builder_ = std::move(builder);
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString().c_str());
 }
@@ -184,7 +187,8 @@ void PurgeableAshMem::AfterRebuildSucc()
 
 void PurgeableAshMem::ResizeData(size_t newSize)
 {
-    if (newSize <= 0) {
+    if (newSize <= 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
+        PM_HILOG_DEBUG(LOG_CORE, "Failed to apply for memory");
         return;
     }
     if (dataPtr_) {
@@ -198,11 +202,18 @@ void PurgeableAshMem::ResizeData(size_t newSize)
         }
     }
     dataSizeInput_ = newSize;
-    CreatePurgeableData_();
+    if (!CreatePurgeableData_()) {
+        PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
+        return;
+    }
 }
 
 bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
 {
+    if (size <= 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
+        PM_HILOG_DEBUG(LOG_CORE, "Failed to apply for memory");
+        return false;
+    }
     if (dataPtr_) {
         if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
