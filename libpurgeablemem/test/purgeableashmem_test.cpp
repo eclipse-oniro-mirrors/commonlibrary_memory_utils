@@ -26,6 +26,7 @@
 #include "gtest/gtest.h"
 #include "ashmem.h"
 #include "securec.h"
+#include "pm_util.h"
 
 #define private public
 #define protected public
@@ -605,7 +606,7 @@ HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
     int fd = 5;
     int intdata = 12345;
     void *data = &intdata;
-    size_t pageSize = 1 << 12;
+    size_t pageSize = PAGE_SIZE;
     pobj1.ResizeData(newSize);
     newSize = 1;
     pobj1.ResizeData(newSize);
@@ -622,6 +623,17 @@ HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
     size = ((pobj4.dataSizeInput_ + pageSize - 1) / pageSize) * pageSize;
     fd = AshmemCreate("PurgeableAshmem", size);
     EXPECT_EQ(pobj4.ChangeAshmemData(size, fd, data), true);
+}
+
+HWTEST_F(PurgeableAshmemTest, GetContentSizeTest, TestSize.Level1)
+{
+    std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
+    PurgeableAshMem pobj(27, std::move(builder1));
+    EXPECT_EQ(pobj.GetContentSize(), 27);
+    bool target = true;
+    pobj.SetDataValid(target);
+    EXPECT_EQ(pobj.IsDataValid(), target);
+    EXPECT_NE(pobj.GetAshmemFd(), -1);
 }
 
 void LoopPrintAlphabet(PurgeableAshMem *pdata, unsigned int loopCount)

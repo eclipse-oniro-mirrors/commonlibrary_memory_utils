@@ -13,12 +13,19 @@
  * limitations under the License.
  */
 
+#include <sys/mman.h>
 #include <cstdio>
 #include <thread>
 #include <memory> /* unique_ptr */
 #include <cstring>
 #include "gtest/gtest.h"
+#include "pm_util.h"
+
+#define private public
+#define protected public
 #include "purgeable_mem.h"
+#undef private
+#undef protected
 
 namespace OHOS {
 namespace PurgeableMem {
@@ -445,6 +452,40 @@ HWTEST_F(PurgeableCppTest, InvalidInputBuilderTest, TestSize.Level1)
     delete pobj;
     pobj = nullptr;
     EXPECT_EQ(ret, false);
+}
+
+HWTEST_F(PurgeableCppTest, ResizeDataTest, TestSize.Level1)
+{
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
+    PurgeableMem *pobj1 = new PurgeableMem(27, std::move(builder));
+    PurgeableMem *pobj2 = new PurgeableMem(27, std::move(builder));
+    std::function<void()> callback = std::bind(&PurgeableMem::IsDataValid, pobj1);
+    size_t pageSize = PAGE_SIZE;
+    LoopReclaimPurgeable(1);
+
+    size_t newSize = 0;
+    int intdata = 12345;
+    void *data = &intdata;
+    pobj1->ResizeData(newSize);
+    newSize = 1;
+    pobj1->ResizeData(newSize);
+    size_t roundip = ((pobj2->dataSizeInput_ + pageSize) / pageSize) * pageSize;
+    munmap(pobj2->dataPtr_, roundip);
+    pobj2->ResizeData(newSize);
+    roundip = ((pobj2->dataSizeInput_ + pageSize) / pageSize) * pageSize;
+    munmap(pobj2->dataPtr_, roundip);
+    pobj2->dataPtr_ = data;
+    pobj2->ResizeData(newSize);
+    EXPECT_NE(pobj2->dataPtr_, nullptr);
+    pobj1->builder_->DoRebuildSuccessCallback();
+    pobj1->builder_->SetRebuildSuccessCallback(callback);
+    pobj1->builder_->DoRebuildSuccessCallback();
+    pobj1->builder_ = nullptr;
+    pobj1->SetRebuildSuccessCallback(callback);
+    delete pobj1;
+    delete pobj2;
+    pobj1 = nullptr;
+    pobj2 = nullptr;
 }
 
 void LoopPrintAlphabet(PurgeableMem *pdata, unsigned int loopCount)

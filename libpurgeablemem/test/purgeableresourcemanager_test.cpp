@@ -191,6 +191,8 @@ HWTEST_F(PurgeableResourceManagerTest, RemoveLastResourceTest, TestSize.Level1)
     PurgeableResourceManager::GetInstance().RemoveLastResource();
     PurgeableResourceManager::GetInstance().ShowLruCache();
     EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
+    size_t newSize = 0;
+    key->ResizeData(newSize);
 }
 }
 }
