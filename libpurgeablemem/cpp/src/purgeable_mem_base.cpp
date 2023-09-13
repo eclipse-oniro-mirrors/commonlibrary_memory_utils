@@ -209,7 +209,7 @@ bool PurgeableMemBase::BeginReadWithDataLock()
 void PurgeableMemBase::EndReadWithDataLock()
 {
     if (isDataValid_) {
-        EndRead();
+        Unpin();
     }
 
     return;
