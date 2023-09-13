@@ -16,6 +16,10 @@
 #ifndef OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PURGEABLE_MEM_BASE_H
 #define OHOS_UTILS_MEMORY_LIBPURGEABLEMEM_CPP_INCLUDE_PURGEABLE_MEM_BASE_H
 
+#ifndef OHOS_MAXIMUM_PURGEABLE_MEMORY
+#define OHOS_MAXIMUM_PURGEABLE_MEMORY ((1024) * (1024) * (1024)) /* 1G */
+#endif /* OHOS_MAXIMUM_PURGEABLE_MEMORY */
+
 #include <memory> /* unique_ptr */
 #include <shared_mutex> /* shared_mutex */
 #include <string>
