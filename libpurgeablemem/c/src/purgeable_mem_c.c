@@ -49,6 +49,10 @@ static inline void LogPurgMemInfo_(struct PurgMem *obj)
 
 static inline size_t RoundUp(size_t val, size_t align)
 {
+    if (val + align < val || val + align < align) {
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: Addition overflow!", __func__);
+        return val;
+    }
     if (align == 0) {
         return val;
     }
