@@ -92,6 +92,10 @@ static inline size_t GetUxPageSize_(uint64_t dataAddr, size_t dataSize)
 
 static inline uint64_t RoundUp(uint64_t val, size_t align)
 {
+    if (val + align < val || val + align < align) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: Addition overflow!", __func__);
+        return val;
+    }
     if (align == 0) {
         return val;
     }
