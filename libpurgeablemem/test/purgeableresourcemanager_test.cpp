@@ -50,6 +50,7 @@ void PurgeableResourceManagerTest::SetUp()
 
 void PurgeableResourceManagerTest::TearDown()
 {
+    sleep(1);
 }
 
 HWTEST_F(PurgeableResourceManagerTest, VisitedTest, TestSize.Level1)
