@@ -575,7 +575,7 @@ HWTEST_F(PurgeableAshmemTest, IsPurgedTest, TestSize.Level1)
     EXPECT_EQ(pobj.Pin(), false);
     EXPECT_EQ(pobj.Unpin(), false);
     pobj.dataSizeInput_ = 0;
-    EXPECT_EQ(pobj.CreatePurgeableData_(), false);
+    EXPECT_EQ(pobj.CreatePurgeableData(), false);
     pobj.dataPtr_ = nullptr;
     ModifyPurgMemByBuilder(&pobj, std::move(modA2B));
     pobj.isDataValid_ = false;

@@ -69,7 +69,7 @@ PurgeableAshMem::PurgeableAshMem(size_t dataSize, std::unique_ptr<PurgeableMemBu
     dataSizeInput_ = dataSize;
     IF_NULL_LOG_ACTION(builder, "%{public}s: input builder nullptr", return);
 
-    if (!CreatePurgeableData_()) {
+    if (!CreatePurgeableData()) {
         PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
         return;
     }
@@ -109,7 +109,7 @@ bool PurgeableAshMem::IsPurged()
     return ret > 0 ? true : false;
 }
 
-bool PurgeableAshMem::CreatePurgeableData_()
+bool PurgeableAshMem::CreatePurgeableData()
 {
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     if (dataSizeInput_ == 0) {
@@ -206,7 +206,7 @@ void PurgeableAshMem::ResizeData(size_t newSize)
         }
     }
     dataSizeInput_ = newSize;
-    if (!CreatePurgeableData_()) {
+    if (!CreatePurgeableData()) {
         PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
         return;
     }

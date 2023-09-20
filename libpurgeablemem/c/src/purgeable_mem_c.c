@@ -39,7 +39,7 @@ struct PurgMem {
     unsigned int buildDataCount;
 };
 
-static inline void LogPurgMemInfo_(struct PurgMem *obj)
+static inline void LogPurgMemInfo(struct PurgMem *obj)
 {
     PM_HILOG_INFO_C(LOG_CORE, "purgMemObj(%{public}lx) dataPtr(%{public}lx) dataSizeInput(%{public}zu)"
         " builderPtr(%{public}lx) uxpt(%{public}lx)",
@@ -59,7 +59,7 @@ static inline size_t RoundUp(size_t val, size_t align)
     return ((val + align - 1) / align) * align;
 }
 
-static bool IsPurgMemPtrValid_(struct PurgMem *purgObj);
+static bool IsPurgMemPtrValid(struct PurgMem *purgObj);
 static bool IsPurged(struct PurgMem *purgObj);
 
 static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder)
@@ -101,8 +101,8 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
     pugObj->dataSizeInput = len;
     pugObj->buildDataCount = 0;
 
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(pugObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(pugObj);
     return pugObj;
 
 deinit_upt:
@@ -149,8 +149,8 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
 bool PurgMemDestroy(struct PurgMem *purgObj)
 {
     IF_NULL_LOG_ACTION(purgObj, "input is NULL", return true);
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(purgObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(purgObj);
 
     PMState err = PM_OK;
     /* destroy rwlock */
@@ -205,7 +205,7 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
     return false;
 }
 
-static bool IsPurgMemPtrValid_(struct PurgMem *purgObj)
+static bool IsPurgMemPtrValid(struct PurgMem *purgObj)
 {
     IF_NULL_LOG_ACTION(purgObj, "obj is NULL", return false);
     IF_NULL_LOG_ACTION(purgObj->dataPtr, "dataPtr is NULL", return false);
@@ -215,7 +215,7 @@ static bool IsPurgMemPtrValid_(struct PurgMem *purgObj)
     return true;
 }
 
-static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
+static inline bool PurgMemBuildData(struct PurgMem *purgObj)
 {
     bool succ = false;
     /* clear content before rebuild */
@@ -223,7 +223,7 @@ static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s, clear content fail", __func__);
         return succ;
     }
-    /* @purgObj->builder is not NULL since it is checked by IsPurgMemPtrValid_() before */
+    /* @purgObj->builder is not NULL since it is checked by IsPurgMemPtrValid() before */
     succ = PurgMemBuilderBuildAll(purgObj->builder, purgObj->dataPtr, purgObj->dataSizeInput);
     if (succ) {
         purgObj->buildDataCount++;
@@ -231,7 +231,7 @@ static inline bool PurgMemBuildData_(struct PurgMem *purgObj)
     return succ;
 }
 
-static PMState TryBeginRead_(struct PurgMem *purgObj)
+static PMState TryBeginRead(struct PurgMem *purgObj)
 {
     int rwlockRet = pthread_rwlock_rdlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
@@ -254,7 +254,7 @@ static PMState TryBeginRead_(struct PurgMem *purgObj)
     return PM_DATA_PURGED;
 }
 
-static PMState BeginReadBuildData_(struct PurgMem *purgObj)
+static PMState BeginReadBuildData(struct PurgMem *purgObj)
 {
     bool rebuildRet = false;
     int rwlockRet = pthread_rwlock_wrlock(&(purgObj->rwlock));
@@ -264,7 +264,7 @@ static PMState BeginReadBuildData_(struct PurgMem *purgObj)
     }
 
     if (IsPurged(purgObj)) {
-        rebuildRet = PurgMemBuildData_(purgObj);
+        rebuildRet = PurgMemBuildData(purgObj);
         PM_HILOG_ERROR_C(LOG_CORE,
             "%{public}s: purged, after built %{public}s", __func__, rebuildRet ? "succ" : "fail");
     }
@@ -284,17 +284,17 @@ static PMState BeginReadBuildData_(struct PurgMem *purgObj)
 
 bool PurgMemBeginRead(struct PurgMem *purgObj)
 {
-    if (!IsPurgMemPtrValid_(purgObj)) {
+    if (!IsPurgMemPtrValid(purgObj)) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return false;
     }
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(purgObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(purgObj);
     bool ret = false;
     PMState err = PM_OK;
     UxpteGet(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
     while (true) {
-        err = TryBeginRead_(purgObj);
+        err = TryBeginRead(purgObj);
         if (err == PM_DATA_NO_PURGED) {
             ret = true;
             break;
@@ -302,7 +302,7 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
             break;
         }
 
-        err = BeginReadBuildData_(purgObj);
+        err = BeginReadBuildData(purgObj);
         if (err != PMB_BUILD_ALL_SUCC) {
             ret = false;
             break;
@@ -318,12 +318,12 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
 
 bool PurgMemBeginWrite(struct PurgMem *purgObj)
 {
-    if (!IsPurgMemPtrValid_(purgObj)) {
+    if (!IsPurgMemPtrValid(purgObj)) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return false;
     }
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(purgObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(purgObj);
     int rwlockRet = 0;
     bool rebuildRet = false;
     PMState err = PM_OK;
@@ -344,7 +344,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     }
 
     /* data is purged */
-    rebuildRet = PurgMemBuildData_(purgObj);
+    rebuildRet = PurgMemBuildData(purgObj);
     PM_HILOG_INFO_C(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, rebuildRet ? "succ" : "fail");
     if (rebuildRet) {
         return true;
@@ -361,9 +361,9 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     return false;
 }
 
-static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
+static inline void EndAccessPurgMem(struct PurgMem *purgObj)
 {
-    if (!IsPurgMemPtrValid_(purgObj)) {
+    if (!IsPurgMemPtrValid(purgObj)) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return;
     }
@@ -377,17 +377,17 @@ static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
 
 void PurgMemEndRead(struct PurgMem *purgObj)
 {
-    EndAccessPurgMem_(purgObj);
+    EndAccessPurgMem(purgObj);
 }
 
 void PurgMemEndWrite(struct PurgMem *purgObj)
 {
-    EndAccessPurgMem_(purgObj);
+    EndAccessPurgMem(purgObj);
 }
 
 void *PurgMemGetContent(struct PurgMem *purgObj)
 {
-    if (!IsPurgMemPtrValid_(purgObj)) {
+    if (!IsPurgMemPtrValid(purgObj)) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return NULL;
     }
@@ -396,7 +396,7 @@ void *PurgMemGetContent(struct PurgMem *purgObj)
 
 size_t PurgMemGetContentSize(struct PurgMem *purgObj)
 {
-    if (!IsPurgMemPtrValid_(purgObj)) {
+    if (!IsPurgMemPtrValid(purgObj)) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return 0;
     }
