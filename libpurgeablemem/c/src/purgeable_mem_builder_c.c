@@ -34,7 +34,7 @@ struct PurgMemBuilder {
 };
 
 /* append a guest builder @newcomer to @head */
-static void AppendBuilder_(struct PurgMemBuilder *head, struct PurgMemBuilder *newcomer);
+static void AppendBuilder(struct PurgMemBuilder *head, struct PurgMemBuilder *newcomer);
 
 struct PurgMemBuilder *PurgMemBuilderCreate(PurgMemBuilderFunc func, void *param, const char *name)
 {
@@ -78,7 +78,7 @@ bool PurgMemBuilderAppendFunc(struct PurgMemBuilder *builder, PurgMemBuilderFunc
     struct PurgMemBuilder *newcomer = PurgMemBuilderCreate(func, param, name);
     IF_NULL_LOG_ACTION(newcomer, "create new builder failed", return false);
 
-    AppendBuilder_(builder, newcomer);
+    AppendBuilder(builder, newcomer);
     return true;
 }
 
@@ -104,16 +104,16 @@ bool PurgMemBuilderAppendBuilder(struct PurgMemBuilder *builder, struct PurgMemB
     IF_NULL_LOG_ACTION(builder, "input builder is NULL", return false);
     IF_NULL_LOG_ACTION(newcomer, "input newcomer is NULL", return false);
 
-    AppendBuilder_(builder, newcomer);
+    AppendBuilder(builder, newcomer);
     return true;
 }
 
 /* append a guest builder @newcomer to @head */
-static void AppendBuilder_(struct PurgMemBuilder *head, struct PurgMemBuilder *newcomer)
+static void AppendBuilder(struct PurgMemBuilder *head, struct PurgMemBuilder *newcomer)
 {
     if (!head->nextBuilder) {
         head->nextBuilder = newcomer;
         return;
     }
-    return AppendBuilder_(head->nextBuilder, newcomer);
+    return AppendBuilder(head->nextBuilder, newcomer);
 }

@@ -62,7 +62,7 @@ protected:
     bool Unpin() override;
     bool IsPurged() override;
     int GetPinStatus() const override;
-    bool CreatePurgeableData_();
+    bool CreatePurgeableData();
     void AfterRebuildSucc() override;
     std::string ToString() const override;
 };

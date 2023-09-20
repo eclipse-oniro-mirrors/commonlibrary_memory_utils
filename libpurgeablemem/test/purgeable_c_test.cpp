@@ -38,8 +38,8 @@ static constexpr int PRINT_INTERVAL_SECONDS = 1;
 static constexpr int RECLAIM_INTERVAL_SECONDS = 1;
 static constexpr int MODIFY_INTERVAL_SECONDS = 2;
 
-bool InitData_(void *data, size_t size, char start, char end);
-bool ModifyData_(void *data, size_t size, char src, char dst);
+bool InitData(void *data, size_t size, char start, char end);
+bool ModifyData(void *data, size_t size, char src, char dst);
 bool InitAlphabet(void *data, size_t size, void *param);
 bool ModifyAlphabetX2Y(void *data, size_t size, void *param);
 void LoopPrintAlphabet(struct PurgMem *pdata, unsigned int loopCount);
@@ -175,7 +175,7 @@ HWTEST_F(PurgeableCTest, ReadWriteTest, TestSize.Level1)
     PurgMemDestroy(pobj);
 }
 
-bool InitData_(void *data, size_t size, char start, char end)
+bool InitData(void *data, size_t size, char start, char end)
 {
     char *str = (char *)data;
     size_t len = 0;
@@ -190,13 +190,13 @@ bool InitAlphabet(void *data, size_t size, void *param)
 {
     struct AlphabetInitParam *para = (struct AlphabetInitParam *)param;
     std::cout << "inter " << __func__ << std::endl;
-    bool ret = InitData_(data, size, para->start, para->end);
+    bool ret = InitData(data, size, para->start, para->end);
     std::cout << "quit " << __func__ << ": " << para->start << "-" << para->end <<
         ", data=[" << (char *)data << "]" << ", ret=" << (ret ? "true" : "false") << std::endl;
     return ret;
 }
 
-bool ModifyData_(void *data, size_t size, char src, char dst)
+bool ModifyData(void *data, size_t size, char src, char dst)
 {
     char *str = (char *)data;
     size_t i = 0;
@@ -214,7 +214,7 @@ bool ModifyAlphabetX2Y(void *data, size_t size, void *param)
     struct AlphabetModifyParam *para = (struct AlphabetModifyParam *)param;
     std::cout << "inter " << __func__ << ": " << para->src << "->" << para->dst <<
         ", data=[" << (char *)data << "]" << std::endl;
-    bool ret = ModifyData_(data, size, para->src, para->dst);
+    bool ret = ModifyData(data, size, para->src, para->dst);
     std::cout << "quit , data=[" << (char *)data << "]" << __func__ <<
         ", ret=" << (ret ? "true" : "false") << std::endl;
     return ret;

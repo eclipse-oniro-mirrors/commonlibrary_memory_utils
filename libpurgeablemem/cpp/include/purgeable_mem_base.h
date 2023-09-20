@@ -117,8 +117,8 @@ protected:
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
     std::shared_mutex rwlock_;
     unsigned int buildDataCount_ = 0;
-    bool BuildContent_();
-    bool IfNeedRebuild_();
+    bool BuildContent();
+    bool IfNeedRebuild();
     virtual bool Pin();
     virtual bool Unpin();
     virtual bool IsPurged();

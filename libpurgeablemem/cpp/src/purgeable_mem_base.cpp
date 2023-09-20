@@ -69,7 +69,7 @@ bool PurgeableMemBase::BeginRead()
             err = PM_LOCK_READ_FAIL;
             break;
         }
-        if (!IfNeedRebuild_()) {
+        if (!IfNeedRebuild()) {
             PM_HILOG_DEBUG(LOG_CORE, "%{public}s: not purged, return true. MAP_PUR=0x%{public}x",
                 __func__, MAP_PURGEABLE);
             ret = true;
@@ -83,8 +83,8 @@ bool PurgeableMemBase::BeginRead()
             err = PM_LOCK_WRITE_FAIL;
             break;
         }
-        if (IfNeedRebuild_()) {
-            succ = BuildContent_();
+        if (IfNeedRebuild()) {
+            succ = BuildContent();
             if (succ) {
                 AfterRebuildSucc();
             }
@@ -131,12 +131,12 @@ bool PurgeableMemBase::BeginWrite()
             err = PM_LOCK_WRITE_FAIL;
             break;
         }
-        if (!IfNeedRebuild_()) {
+        if (!IfNeedRebuild()) {
             /* data is not purged, return true */
             break;
         }
         /* data purged, rebuild it */
-        if (BuildContent_()) {
+        if (BuildContent()) {
             /* data rebuild succ, return true */
             AfterRebuildSucc();
             break;
@@ -182,14 +182,14 @@ bool PurgeableMemBase::BeginReadWithDataLock()
     Pin();
     PMState err = PM_OK;
     while (true) {
-        if (!IfNeedRebuild_()) {
+        if (!IfNeedRebuild()) {
             PM_HILOG_DEBUG(LOG_CORE, "%{public}s: not purged, return true. MAP_PUR=0x%{public}x",
                 __func__, MAP_PURGEABLE);
             ret = true;
             break;
         }
 
-        succ = BuildContent_();
+        succ = BuildContent();
         if (succ) {
             AfterRebuildSucc();
         }
@@ -235,7 +235,7 @@ bool PurgeableMemBase::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilde
     return true;
 }
 
-bool PurgeableMemBase::IfNeedRebuild_()
+bool PurgeableMemBase::IfNeedRebuild()
 {
     if (buildDataCount_ == 0 || IsPurged()) {
         return true;
@@ -262,7 +262,7 @@ bool PurgeableMemBase::IsPurged()
     return false;
 }
 
-bool PurgeableMemBase::BuildContent_()
+bool PurgeableMemBase::BuildContent()
 {
     bool succ = false;
     /* clear content before rebuild */
