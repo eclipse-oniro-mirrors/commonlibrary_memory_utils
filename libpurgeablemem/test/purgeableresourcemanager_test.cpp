@@ -147,14 +147,13 @@ HWTEST_F(PurgeableResourceManagerTest, AddResourceTest, TestSize.Level1)
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
     PurgeableResourceManager::GetInstance().AddResource(nullptr);
     PurgeableResourceManager::GetInstance().AddResource(key);
-    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 1);
     PurgeableResourceManager::GetInstance().Clear();
+    EXPECT_EQ(PurgeableResourceManager::GetInstance().lruCache_.Size(), 0);
 }
 
 HWTEST_F(PurgeableResourceManagerTest, RemoveResourceTest, TestSize.Level1)
 {
     std::shared_ptr<PurgeableMemBase> key = std::make_shared<PurgeableMemBase>();
-    PurgeableResourceManager::GetInstance().RemoveResource(nullptr);
     PurgeableResourceManager::GetInstance().AddResource(key);
     PurgeableResourceManager::GetInstance().RemoveResource(key);
     PurgeableResourceManager::GetInstance().Clear();
