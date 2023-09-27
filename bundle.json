@@ -23,8 +23,7 @@
         "hilog",
         "hitrace",
         "init",
-        "ipc",
-        "ffrt"
+        "ipc"
       ],
       "third_party": []
     },

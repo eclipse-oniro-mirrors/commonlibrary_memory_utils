@@ -25,9 +25,7 @@
 #include <string>
 
 #include "purgeable_mem_builder.h"
-#include "purgeable_resource_manager.h"
 #include "ux_page_table.h"
-#include "ffrt.h"
 
 namespace OHOS {
 namespace PurgeableMem {
@@ -111,7 +109,7 @@ public:
 
 protected:
     void *dataPtr_ = nullptr;
-    ffrt::mutex dataLock_;
+    std::mutex dataLock_;
     bool isDataValid_ {true};
     size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
@@ -125,7 +123,6 @@ protected:
     virtual int GetPinStatus() const;
     virtual void AfterRebuildSucc();
     virtual std::string ToString() const;
-    friend class PurgeableResourceManager;
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */
