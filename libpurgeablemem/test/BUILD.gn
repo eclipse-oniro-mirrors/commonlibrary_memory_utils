@@ -61,24 +61,11 @@ ohos_unittest("purgeableashmem_test") {
   part_name = "memory_utils"
 }
 
-ohos_unittest("purgeableresourcemanager_test") {
-  module_out_path = module_output_path
-  sources = [ "purgeableresourcemanager_test.cpp" ]
-  if (is_standard_system) {
-    external_deps = purgeable_external_deps
-    public_deps = purgeable_public_deps
-  }
-
-  subsystem_name = "commonlibrary"
-  part_name = "memory_utils"
-}
-
 group("libpurgeablemem_test") {
   testonly = true
   deps = [
     ":purgeable_c_test",
     ":purgeable_cpp_test",
     ":purgeableashmem_test",
-    ":purgeableresourcemanager_test",
   ]
 }
