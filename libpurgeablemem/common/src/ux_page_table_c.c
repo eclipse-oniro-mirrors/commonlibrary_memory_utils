@@ -16,6 +16,7 @@
 #include <stddef.h> /* NULL */
 #include <sys/mman.h> /* mmap */
 #include <sched.h> /* sched_yield() */
+#include <limits.h>
 
 #include "hilog/log_c.h"
 #include "pm_util.h"
@@ -261,6 +262,9 @@ static void UxpteAdd(uxpte_t *pte, size_t incNum)
     uxpte_t old;
     do {
         old = UxpteLoad(pte);
+        if (ULONG_MAX - old < incNum) {
+            return;
+        }
         if (IsUxpteUnderReclaim(old)) {
             sched_yield();
             continue;
