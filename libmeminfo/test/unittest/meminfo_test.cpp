@@ -71,7 +71,6 @@ HWTEST_F(MemInfoTest, GetPssByPid_Test_001, TestSize.Level1)
     uint64_t size = 0;
     size = GetPssByPid(pid);
     std::cout << "size = " << size << std::endl;
-    system("hidumper --mem 1");
     system("cat /proc/1/smaps_rollup");
     ASSERT_EQ(size > 0, true);
 }
@@ -82,6 +81,33 @@ HWTEST_F(MemInfoTest, GetPssByPid_Test_002, TestSize.Level1)
     uint64_t size = 0;
     size = GetPssByPid(pid);
     ASSERT_EQ(size == 0, true);
+}
+
+HWTEST_F(MemInfoTest, GetSwapPssByPid_Test_001, TestSize.Level1)
+{
+    int pid = 1;
+    uint64_t size = 0;
+    size = GetSwapPssByPid(pid);
+    std::cout << "size = " << size << std::endl;
+    system("cat /proc/1/smaps_rollup");
+    ASSERT_EQ(size >= 0, true);
+}
+
+HWTEST_F(MemInfoTest, GetSwapPssByPid_Test_002, TestSize.Level1)
+{
+    int pid = -1;
+    uint64_t size = 0;
+    size = GetSwapPssByPid(pid);
+    ASSERT_EQ(size == 0, true);
+}
+
+HWTEST_F(MemInfoTest, GetGraphicsMemory_Test, TestSize.Level1)
+{
+    int pid = 1;
+    uint64_t gl = 0;
+    uint64_t graph = 0;
+    GetGraphicsMemory(pid, gl, graph);
+    ASSERT_EQ(gl == 0, true);
 }
 }
 }

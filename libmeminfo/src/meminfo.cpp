@@ -29,31 +29,13 @@ constexpr HiviewDFX::HiLogLabel LABEL = { LOG_CORE, 0xD001799, "MemInfo" };
 constexpr int PAGE_TO_KB = 4;
 constexpr int BYTE_PER_KB = 1024;
 
-// get rss refer to memmgr
+// get Rss from statm
 uint64_t GetRssByPid(const int pid)
 {
     uint64_t size = 0;
-    std::string stat;
     std::string statm;
-    std::string statPid;
     std::string vss;
     std::string rss;
-    std::string name;
-    std::string status;
-    std::string statPath = "/proc/" + std::to_string(pid) + "/stat";
-    // format like:
-    // 1 (init) S 0 0 0 0 -1 4210944 1 ...
-    if (!OHOS::LoadStringFromFile(statPath, stat)) {
-        HiviewDFX::HiLog::Error(LABEL, "stat file error!");
-        return size;
-    }
-    std::istringstream isStat(stat);
-    isStat >> statPid >> name >> status;
-
-    if (statPid != std::to_string(pid)) {
-        HiviewDFX::HiLog::Error(LABEL, "pid error!");
-        return size;
-    }
 
     std::string statmPath = "/proc/" + std::to_string(pid) + "/statm";
     // format like:
@@ -69,7 +51,7 @@ uint64_t GetRssByPid(const int pid)
     return size;
 }
 
-// get Pss and SwapPss from smaps_rollup, include graphics memory
+// get Pss from smaps_rollup
 uint64_t GetPssByPid(const int pid)
 {
     uint64_t size = 0;
@@ -85,22 +67,43 @@ uint64_t GetPssByPid(const int pid)
         std::string::size_type typePos = content.find(":");
         if (typePos != content.npos) {
             std::string type = content.substr(0, typePos);
-            if (type == "Pss" || type == "SwapPss") {
+            if (type == "Pss") {
                 std::string valueStr = content.substr(typePos + 1);
                 const int base = 10;
-                size += strtoull(valueStr.c_str(), nullptr, base);
+                size = strtoull(valueStr.c_str(), nullptr, base);
+                break;
             }
         }
     }
     in.close();
+    return size;
+}
 
-    uint64_t gl = 0;
-    uint64_t graph = 0;
-    bool ret = GetGraphicsMemory(pid, gl, graph);
-    if (ret) {
-        size += gl;
-        size += graph;
+// get SwapPss from smaps_rollup
+uint64_t GetSwapPssByPid(const int pid)
+{
+    uint64_t size = 0;
+    std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
+    std::ifstream in(filename);
+    if (!in) {
+        HiviewDFX::HiLog::Error(LABEL, "File %{public}s not found.\n", filename.c_str());
+        return size;
     }
+
+    std::string content;
+    while (in.good() && getline(in, content)) {
+        std::string::size_type typePos = content.find(":");
+        if (typePos != content.npos) {
+            std::string type = content.substr(0, typePos);
+            if (type == "SwapPss") {
+                std::string valueStr = content.substr(typePos + 1);
+                const int base = 10;
+                size = strtoull(valueStr.c_str(), nullptr, base);
+                break;
+            }
+        }
+    }
+    in.close();
     return size;
 }
 
