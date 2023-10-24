@@ -21,11 +21,14 @@
 
 namespace OHOS {
 namespace MemInfo {
-// get rss refer to memmgr
+// get Rss from statm
 uint64_t GetRssByPid(const int pid);
 
-// get pss from smaps_rollup, include graphics memory
+// get Pss from smaps_rollup
 uint64_t GetPssByPid(const int pid);
+
+// get SwapPss from smaps_rollup
+uint64_t GetSwapPssByPid(const int pid);
 
 // get graphics memory from hdi
 bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph);
