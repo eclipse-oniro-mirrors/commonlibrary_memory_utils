@@ -259,8 +259,13 @@ static inline bool UxpteCAS_(uxpte_t *uxpte, uxpte_t old, uxpte_t newVal)
 
 static void UxpteAdd(uxpte_t *pte, size_t incNum)
 {
-    uxpte_t old;
+    uxpte_t old = 0;
+    uxpte_t newVal = 0;
     do {
+        if (old + incNum < old || old + incNum < incNum) {
+            break;
+        }
+        newVal = old + incNum;
         old = UxpteLoad(pte);
         if (ULONG_MAX - old < incNum) {
             return;
@@ -269,7 +274,7 @@ static void UxpteAdd(uxpte_t *pte, size_t incNum)
             sched_yield();
             continue;
         }
-    } while (!UxpteCAS_(pte, old, old + incNum));
+    } while (!UxpteCAS_(pte, old, newVal));
 }
 
 static void UxpteSub(uxpte_t *pte, size_t decNum)
