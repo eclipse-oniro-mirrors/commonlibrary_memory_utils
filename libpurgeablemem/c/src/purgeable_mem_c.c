@@ -72,8 +72,9 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         return NULL;
     }
     size_t size = RoundUp(len, PAGE_SIZE);
-    int type = MAP_ANONYMOUS;
-    type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    unsigned int utype = MAP_ANONYMOUS;
+    utype |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    int type = (int) utype;
     pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, type, -1, 0);
     if (pugObj->dataPtr == MAP_FAILED) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
