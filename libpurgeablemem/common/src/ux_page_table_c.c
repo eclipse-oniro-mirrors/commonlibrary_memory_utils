@@ -262,11 +262,11 @@ static void UxpteAdd(uxpte_t *pte, size_t incNum)
     uxpte_t old = 0;
     uxpte_t newVal = 0;
     do {
+        old = UxpteLoad(pte);
         if (old + incNum < old || old + incNum < incNum) {
             break;
         }
         newVal = old + incNum;
-        old = UxpteLoad(pte);
         if (ULONG_MAX - old < incNum) {
             return;
         }
