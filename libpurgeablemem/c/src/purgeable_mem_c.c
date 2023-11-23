@@ -61,6 +61,7 @@ static inline size_t RoundUp(size_t val, size_t align)
 
 static bool IsPurgMemPtrValid(struct PurgMem *purgObj);
 static bool IsPurged(struct PurgMem *purgObj);
+static int TypeCast(void);
 
 static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder)
 {
@@ -72,9 +73,7 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         return NULL;
     }
     size_t size = RoundUp(len, PAGE_SIZE);
-    unsigned int utype = MAP_ANONYMOUS;
-    utype |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
-    int type = (int) utype;
+    int type = TypeCast();
     pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, type, -1, 0);
     if (pugObj->dataPtr == MAP_FAILED) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
@@ -431,4 +430,12 @@ static bool IsPurged(struct PurgMem *purgObj)
         return true;
     }
     return !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
+}
+
+static int TypeCast(void)
+{
+    unsigned int utype = MAP_ANONYMOUS;
+    utype |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    int type = (int) utype;
+    return type;
 }
