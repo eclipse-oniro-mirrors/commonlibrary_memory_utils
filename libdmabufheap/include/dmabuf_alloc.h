@@ -38,8 +38,17 @@ typedef enum {
 typedef struct {
     unsigned int fd;
     size_t size;
-    unsigned int heapFlags;
+    __u64 heapFlags;
 } DmabufHeapBuffer;
+
+enum DmaHeapFlagOwnerId {
+    DMA_OWNER_DEFAULT,
+    DMA_OWNER_GPU,
+    DMA_OWNER_MEDIA_CODEC,
+    COUNT_DMA_OWNER,
+};
+
+void SetOwnerIdForHeapFlags(DmabufHeapBuffer *buffer, enum DmaHeapFlagOwnerId ownerId);
 
 int DmabufHeapOpen(const char *heapName);
 

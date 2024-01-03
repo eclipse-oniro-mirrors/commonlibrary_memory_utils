@@ -83,6 +83,13 @@ HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
     ASSERT_GE(heapFd, 0);
 
     DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
+
+    SetOwnerIdForHeapFlags(&buffer, DMA_OWNER_MEDIA_CODEC);
+
+    __u64 ownerId = get_owner_id_from_heap_flags(buffer.heapFlags);
+
+    ASSERT_EQ(DMA_OWNER_MEDIA_CODEC, ownerId);
+
     ASSERT_EQ(0, DmabufHeapBufferAlloc(heapFd, &buffer));
 
     void *ptr = mmap(NULL, BUFFER_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, buffer.fd, 0);

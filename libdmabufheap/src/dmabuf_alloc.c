@@ -51,6 +51,13 @@ static bool IsSyncTypeValid(DmabufHeapBufferSyncType syncType)
     }
 }
 
+void SetOwnerIdForHeapFlags(DmabufHeapBuffer *buffer, enum DmaHeapFlagOwnerId ownerId)
+{
+    if (buffer) {
+        set_owner_id_for_heap_flags(&buffer->heapFlags, ownerId);
+    }
+}
+
 int DmabufHeapOpen(const char *heapName)
 {
     if (!IsHeapNameValid(heapName)) {
