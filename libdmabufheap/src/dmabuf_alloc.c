@@ -23,6 +23,7 @@
 #include "securec.h"
 #include "hilog/log.h"
 #include "dmabuf_alloc.h"
+#include "memory_trace.h"
 
 #define DMA_BUF_HEAP_ROOT "/dev/dma_heap/"
 #define HEAP_ROOT_LEN strlen(DMA_BUF_HEAP_ROOT)
@@ -64,19 +65,22 @@ int DmabufHeapOpen(const char *heapName)
         HILOG_ERROR(LOG_CORE, "heapName is wrong, name = %s.", (heapName == NULL) ? "NULL" : heapName);
         return -EINVAL;
     }
-
     char heapPath[HEAP_PATH_LEN] = DMA_BUF_HEAP_ROOT;
     errno_t ret = strcat_s(heapPath, HEAP_PATH_LEN, heapName);
     if (ret != EOK) {
         HILOG_ERROR(LOG_CORE, "strcat_s is wrong, heapName = %s, ret = %d.", heapName, ret);
         return -EINVAL;
     }
-
-    return open(heapPath, O_RDONLY | O_CLOEXEC);
+    int fd = open(heapPath, O_RDONLY | O_CLOEXEC);
+    long newFd = fd;
+    memtrace((void *)newFd, HEAP_NAME_MAX_LEN, "DmabufHeap", true);
+    return fd;
 }
 
 int DmabufHeapClose(unsigned int fd)
 {
+    long newFd = fd;
+    memtrace((void *)newFd, HEAP_NAME_MAX_LEN, "DmabufHeap", false);
     return close(fd);
 }
 
@@ -97,13 +101,14 @@ int DmabufHeapBufferAlloc(unsigned int heapFd, DmabufHeapBuffer *buffer)
         HILOG_ERROR(LOG_CORE, "alloc buffer failed, size = %zu, ret = %d.", buffer->size, ret);
         return ret;
     }
-
+    memtrace((void *)buffer, buffer->size, "DmabufHeap", true);
     buffer->fd = data.fd;
     return ret;
 }
 
 int DmabufHeapBufferFree(DmabufHeapBuffer *buffer)
 {
+    memtrace((void *)buffer, buffer->size, "DmabufHeap", false);
     return close(buffer->fd);
 }
 
