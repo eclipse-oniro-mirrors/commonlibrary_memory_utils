@@ -18,7 +18,11 @@
 
 #include "hilog/log.h"
 
-static constexpr OHOS::HiviewDFX::HiLogLabel PM_LOG_LABEL = { LOG_CORE, 0xD001799, "MemMgrPurge" };
+#undef LOG_TAG
+#define LOG_TAG "MemMgrPurge"
+
+#undef LOG_DOMAIN
+#define LOG_DOMAIN 0xD001799
 
 #ifdef PM_HILOG_ERROR
 #undef PM_HILOG_ERROR
@@ -35,14 +39,14 @@ static constexpr OHOS::HiviewDFX::HiLogLabel PM_LOG_LABEL = { LOG_CORE, 0xD00179
 #define PM_FILENAME "purgeable"
 
 #define PM_HILOG_ERROR(logCore, fmt, ...)            \
-    (void)OHOS::HiviewDFX::HiLog::Error(             \
-        PM_LOG_LABEL, "[%{public}s(%{public}s:%{public}d)]" fmt, PM_FILENAME, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    HILOG_ERROR(             \
+        LOG_CORE, "[%{public}s(%{public}s:%{public}d)]" fmt, PM_FILENAME, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 #define PM_HILOG_INFO(logCore, fmt, ...)             \
-    (void)OHOS::HiviewDFX::HiLog::Info(              \
-        PM_LOG_LABEL, "[%{public}s(%{public}s:%{public}d)]" fmt, PM_FILENAME, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    HILOG_INFO(              \
+        LOG_CORE, "[%{public}s(%{public}s:%{public}d)]" fmt, PM_FILENAME, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 #define PM_HILOG_DEBUG(logCore, fmt, ...)            \
-    (void)OHOS::HiviewDFX::HiLog::Debug(             \
-        PM_LOG_LABEL, "[%{public}s(%{public}s:%{public}d)]" fmt, PM_FILENAME, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    HILOG_DEBUG(             \
+        LOG_CORE, "[%{public}s(%{public}s:%{public}d)]" fmt, PM_FILENAME, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #endif

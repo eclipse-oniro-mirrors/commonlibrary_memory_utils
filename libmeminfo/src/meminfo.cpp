@@ -22,10 +22,16 @@
 #include "file_ex.h" // LoadStringFromFile
 #include "hilog/log.h"
 
+#undef LOG_TAG
+#define LOG_TAG "MemInfo"
+
+#undef LOG_DOMAIN
+#define LOG_DOMAIN 0xD001799
+
+
 namespace OHOS {
 namespace MemInfo {
 using namespace OHOS::HDI::Memorytracker::V1_0;
-constexpr HiviewDFX::HiLogLabel LABEL = { LOG_CORE, 0xD001799, "MemInfo" };
 constexpr int PAGE_TO_KB = 4;
 constexpr int BYTE_PER_KB = 1024;
 
@@ -41,7 +47,7 @@ uint64_t GetRssByPid(const int pid)
     // format like:
     // 640 472 369 38 0 115 0
     if (!OHOS::LoadStringFromFile(statmPath, statm)) {
-        HiviewDFX::HiLog::Error(LABEL, "statm file error!");
+        HILOG_ERROR(LOG_CORE, "statm file error!");
         return size;
     }
     std::istringstream isStatm(statm);
@@ -58,7 +64,7 @@ uint64_t GetPssByPid(const int pid)
     std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
     std::ifstream in(filename);
     if (!in) {
-        HiviewDFX::HiLog::Error(LABEL, "File %{public}s not found.\n", filename.c_str());
+        HILOG_ERROR(LOG_CORE, "File %{public}s not found.\n", filename.c_str());
         return size;
     }
 
@@ -86,7 +92,7 @@ uint64_t GetSwapPssByPid(const int pid)
     std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
     std::ifstream in(filename);
     if (!in) {
-        HiviewDFX::HiLog::Error(LABEL, "File %{public}s not found.\n", filename.c_str());
+        HILOG_ERROR(LOG_CORE, "File %{public}s not found.\n", filename.c_str());
         return size;
     }
 
@@ -113,7 +119,7 @@ bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph)
     bool ret = false;
     sptr<IMemoryTrackerInterface> memtrack = IMemoryTrackerInterface::Get(true);
     if (memtrack == nullptr) {
-        HiviewDFX::HiLog::Error(LABEL, "memtrack service is null");
+        HILOG_ERROR(LOG_CORE, "memtrack service is null");
         return ret;
     }
     const std::vector<std::pair<MemoryTrackerType, std::string>> MEMORY_TRACKER_TYPES = {
