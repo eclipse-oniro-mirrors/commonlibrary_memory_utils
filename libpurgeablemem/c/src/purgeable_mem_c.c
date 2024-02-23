@@ -39,7 +39,7 @@ struct PurgMem {
     unsigned int buildDataCount;
 };
 
-static inline void LogPurgMemInfo_(struct PurgMem *obj)
+static inline void LogPurgMemInfo(struct PurgMem *obj)
 {
     PM_HILOG_INFO_C(LOG_CORE, "purgMemObj(%{public}lx) dataPtr(%{public}lx) dataSizeInput(%{public}zu)"
         " builderPtr(%{public}lx) uxpt(%{public}lx)",
@@ -57,6 +57,7 @@ static inline size_t RoundUp(size_t val, size_t align)
 
 static bool IsPurgMemPtrValid_(struct PurgMem *purgObj);
 static bool IsPurged(struct PurgMem *purgObj);
+static int GetMapType(void);
 
 static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder)
 {
@@ -68,8 +69,7 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
         return NULL;
     }
     size_t size = RoundUp(len, PAGE_SIZE);
-    int type = MAP_ANONYMOUS;
-    type |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    int type = GetMapType();
     pugObj->dataPtr = mmap(NULL, size, PROT_READ | PROT_WRITE, type, -1, 0);
     if (pugObj->dataPtr == MAP_FAILED) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: mmap dataPtr fail", __func__);
@@ -97,8 +97,8 @@ static struct PurgMem *PurgMemCreate_(size_t len, struct PurgMemBuilder *builder
     pugObj->dataSizeInput = len;
     pugObj->buildDataCount = 0;
 
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(pugObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(pugObj);
     return pugObj;
 
 deinit_upt:
@@ -145,8 +145,8 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
 bool PurgMemDestroy(struct PurgMem *purgObj)
 {
     IF_NULL_LOG_ACTION(purgObj, "input is NULL", return true);
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(purgObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(purgObj);
 
     PMState err = PM_OK;
     /* destroy rwlock */
@@ -284,8 +284,8 @@ bool PurgMemBeginRead(struct PurgMem *purgObj)
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return false;
     }
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(purgObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(purgObj);
     bool ret = false;
     PMState err = PM_OK;
     UxpteGet(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
@@ -318,8 +318,8 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
         return false;
     }
-    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo_:", __func__);
-    LogPurgMemInfo_(purgObj);
+    PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
+    LogPurgMemInfo(purgObj);
     int rwlockRet = 0;
     bool rebuildRet = false;
     PMState err = PM_OK;
@@ -357,7 +357,7 @@ bool PurgMemBeginWrite(struct PurgMem *purgObj)
     return false;
 }
 
-static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
+static inline void EndAccessPurgMem(struct PurgMem *purgObj)
 {
     if (!IsPurgMemPtrValid_(purgObj)) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: para is invalid", __func__);
@@ -373,12 +373,12 @@ static inline void EndAccessPurgMem_(struct PurgMem *purgObj)
 
 void PurgMemEndRead(struct PurgMem *purgObj)
 {
-    EndAccessPurgMem_(purgObj);
+    EndAccessPurgMem(purgObj);
 }
 
 void PurgMemEndWrite(struct PurgMem *purgObj)
 {
-    EndAccessPurgMem_(purgObj);
+    EndAccessPurgMem(purgObj);
 }
 
 void *PurgMemGetContent(struct PurgMem *purgObj)
@@ -426,4 +426,12 @@ static bool IsPurged(struct PurgMem *purgObj)
         return true;
     }
     return !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
+}
+
+static int GetMapType(void)
+{
+    unsigned int utype = MAP_ANONYMOUS;
+    utype |= (UxpteIsEnabled() ? MAP_PURGEABLE : MAP_PRIVATE);
+    int type = (int) utype;
+    return type;
 }
