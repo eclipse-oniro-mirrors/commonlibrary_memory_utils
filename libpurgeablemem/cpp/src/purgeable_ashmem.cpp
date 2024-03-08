@@ -148,7 +148,7 @@ bool PurgeableAshMem::Pin()
     }
     if (ashmemFd_ > 0) {
         TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_PIN, &pin_));
-        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: fd:%{pubilc}d PURGEABLE_GET_PIN_STATE: %{public}d",
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: fd:%{public}d PURGEABLE_GET_PIN_STATE: %{public}d",
                        __func__, ashmemFd_, ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_));
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "ashmemFd_ not exist!!");
@@ -164,7 +164,7 @@ bool PurgeableAshMem::Unpin()
     }
     if (ashmemFd_ > 0) {
         TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_UNPIN, &pin_));
-        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: fd:%{pubilc}d PURGEABLE_GET_PIN_STATE: %{public}d",
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: fd:%{public}d PURGEABLE_GET_PIN_STATE: %{public}d",
                        __func__, ashmemFd_, ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_));
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "ashmemFd_ not exist!!");
