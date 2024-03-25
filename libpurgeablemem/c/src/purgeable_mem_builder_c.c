@@ -85,6 +85,10 @@ bool PurgMemBuilderAppendFunc(struct PurgMemBuilder *builder, PurgMemBuilderFunc
 /* build @data content from @builder */
 bool PurgMemBuilderBuildAll(struct PurgMemBuilder *builder, void *data, size_t size)
 {
+    if (builder == NULL) {
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: builder is NULL!", __func__);
+        return false;
+    }
     if (!(builder->Build)) {
         PM_HILOG_ERROR_C(LOG_CORE, "builder has no Build(), %{public}s", builder->name);
         return true;
@@ -111,6 +115,10 @@ bool PurgMemBuilderAppendBuilder(struct PurgMemBuilder *builder, struct PurgMemB
 /* append a guest builder @newcomer to @head */
 static void AppendBuilder(struct PurgMemBuilder *head, struct PurgMemBuilder *newcomer)
 {
+    if (head == NULL) {
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: head is NULL!", __func__);
+        return;
+    }
     if (!head->nextBuilder) {
         head->nextBuilder = newcomer;
         return;
