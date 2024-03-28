@@ -182,6 +182,10 @@ PMState InitUxPageTable(UxPageTableStruct *upt, uint64_t addr, size_t len)
         HILOG_DEBUG(LOG_CORE, "%{public}s: not support uxpt", __func__);
         return PM_OK;
     }
+    if (upt == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: upt is NULL!", __func__);
+        return PM_MMAP_UXPT_FAIL;
+    }
     upt->dataAddr = addr;
     upt->dataSize = len;
     upt->uxpte = MapUxptePages(upt->dataAddr, upt->dataSize);
@@ -197,6 +201,10 @@ PMState DeinitUxPageTable(UxPageTableStruct *upt)
     if (!g_supportUxpt) {
         HILOG_DEBUG(LOG_CORE, "%{public}s: not support uxpt", __func__);
         return PM_OK;
+    }
+    if (upt == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: upt is NULL!", __func__);
+        return PM_MMAP_UXPT_FAIL;
     }
     size_t size = GetUxPageSize(upt->dataAddr, upt->dataSize);
     int unmapRet = 0;
@@ -304,6 +312,10 @@ static inline size_t GetIndexInUxpte(uint64_t startAddr, uint64_t currAddr)
 
 static void GetUxpteAt(UxPageTableStruct *upt, uint64_t addr)
 {
+    if (upt == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: upt is NULL!", __func__);
+        return;
+    }
     size_t index = GetIndexInUxpte(upt->dataAddr, addr);
     UxpteAdd(&(upt->uxpte[index]), UXPTE_REFCNT_ONE);
 
@@ -313,6 +325,10 @@ static void GetUxpteAt(UxPageTableStruct *upt, uint64_t addr)
 
 static void PutUxpteAt(UxPageTableStruct *upt, uint64_t addr)
 {
+    if (upt == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: upt is NULL!", __func__);
+        return;
+    }
     size_t index = GetIndexInUxpte(upt->dataAddr, addr);
     UxpteSub(&(upt->uxpte[index]), UXPTE_REFCNT_ONE);
 
@@ -322,6 +338,10 @@ static void PutUxpteAt(UxPageTableStruct *upt, uint64_t addr)
 
 static void ClearUxpteAt(UxPageTableStruct *upt, uint64_t addr)
 {
+    if (upt == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: upt is NULL!", __func__);
+        return;
+    }
     size_t index = GetIndexInUxpte(upt->dataAddr, addr);
     UxpteClear_(&(upt->uxpte[index]));
 }

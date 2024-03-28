@@ -41,6 +41,10 @@ struct PurgMem {
 
 static inline void LogPurgMemInfo(struct PurgMem *obj)
 {
+    if (obj == NULL) {
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: obj is NULL!", __func__);
+        return;
+    }
     PM_HILOG_INFO_C(LOG_CORE, "purgMemObj(%{public}lx) dataPtr(%{public}lx) dataSizeInput(%{public}zu)"
         " builderPtr(%{public}lx) uxpt(%{public}lx)",
         (unsigned long)obj, (unsigned long)(obj->dataPtr), obj->dataSizeInput,

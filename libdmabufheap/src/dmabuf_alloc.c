@@ -86,6 +86,10 @@ int DmabufHeapClose(unsigned int fd)
 
 int DmabufHeapBufferAlloc(unsigned int heapFd, DmabufHeapBuffer *buffer)
 {
+    if (buffer == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: buffer is NULL!", __func__);
+        return -EINVAL;
+    }
     if (buffer->size == 0) {
         HILOG_ERROR(LOG_CORE, "alloc buffer size is wrong.");
         return -EINVAL;
@@ -108,6 +112,10 @@ int DmabufHeapBufferAlloc(unsigned int heapFd, DmabufHeapBuffer *buffer)
 
 int DmabufHeapBufferFree(DmabufHeapBuffer *buffer)
 {
+    if (buffer == NULL) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: buffer is NULL!", __func__);
+        return -EINVAL;
+    }
     memtrace((void *)buffer, buffer->size, "DmabufHeap", false);
     return close(buffer->fd);
 }
