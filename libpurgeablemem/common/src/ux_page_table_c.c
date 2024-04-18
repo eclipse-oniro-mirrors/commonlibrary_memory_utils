@@ -86,9 +86,23 @@ static inline bool IsUxpteUnderReclaim(uxpte_t pte)
     return pte == UXPTE_UNDER_RECLAIM;
 }
 
-static inline size_t GetUxPageSize(uint64_t dataAddr, size_t dataSize)
+static size_t GetUxPageSize(uint64_t dataAddr, size_t dataSize)
 {
-    return (UxptePageNo(dataAddr + dataSize - 1) - UxptePageNo(dataAddr) + 1) * PAGE_SIZE;
+    if (dataAddr + dataSize < dataAddr || dataAddr + dataSize < dataSize || dataAddr + dataSize < 1) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: Addition overflow!", __func__);
+        return 0;
+    }
+    uint64_t pageNoEnd = UxptePageNo(dataAddr + dataSize -1);
+    uint64_t pageNoStart = UxptePageNo(dataAddr);
+    if (pageNoEnd < pageNoStart) {
+        HILOG_ERROR(LOG_CORE, "pageNoEnd < pageNoStart");
+        return 0;
+    }
+    if (pageNoEnd - pageNoStart > SIZE_MAX / PAGE_SIZE) {
+        HILOG_ERROR(LOG_CORE, "pageNoEnd - pageNoStart > SIZE_MAX / PAGE_SIZE");
+        return 0;
+    }
+    return (pageNoEnd - pageNoStart) * PAGE_SIZE;
 }
 
 static inline uint64_t RoundUp(uint64_t val, size_t align)
