@@ -97,8 +97,6 @@ public:
     void SetRebuildSuccessCallback(std::function<void()> &callback);
     bool IsDataValid();
     void SetDataValid(bool target);
-    bool BeginReadWithDataLock();
-    void EndReadWithDataLock();
 
     PurgeableMemBase();
     virtual ~PurgeableMemBase();
@@ -113,7 +111,6 @@ protected:
     bool isDataValid_ {true};
     size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
-    std::shared_mutex rwlock_;
     unsigned int buildDataCount_ = 0;
     bool BuildContent();
     bool IfNeedRebuild();
