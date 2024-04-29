@@ -579,9 +579,9 @@ HWTEST_F(PurgeableAshmemTest, IsPurgedTest, TestSize.Level1)
     pobj.dataPtr_ = nullptr;
     ModifyPurgMemByBuilder(&pobj, std::move(modA2B));
     pobj.isDataValid_ = false;
-    pobj.BeginReadWithDataLock();
+    pobj.BeginRead();
     pobj.isDataValid_ = true;
-    pobj.EndReadWithDataLock();
+    pobj.EndRead();
 }
 
 HWTEST_F(PurgeableAshmemTest, GetPinStatusTest, TestSize.Level1)
