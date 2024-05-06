@@ -58,7 +58,6 @@ bool PurgeableMemBase::BeginRead()
         return false;
     }
 
-    bool succ = false;
     bool ret = false;
     int tryTimes = 0;
 
@@ -75,7 +74,7 @@ bool PurgeableMemBase::BeginRead()
             break;
         }
 
-        succ = BuildContent();
+        bool succ = BuildContent();
         if (succ) {
             AfterRebuildSucc();
         }
