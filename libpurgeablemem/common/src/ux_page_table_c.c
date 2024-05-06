@@ -268,7 +268,7 @@ bool UxpteIsPresent(UxPageTableStruct *upt, uint64_t addr, size_t len)
     return ret == PM_OK;
 }
 
-static inline uxpte_t UxpteLoad(uxpte_t *uxpte)
+static inline uxpte_t UxpteLoad(const uxpte_t *uxpte)
 {
     __sync_synchronize();
     return *uxpte;
