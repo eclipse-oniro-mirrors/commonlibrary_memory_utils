@@ -98,11 +98,11 @@ static size_t GetUxPageSize(uint64_t dataAddr, size_t dataSize)
         HILOG_ERROR(LOG_CORE, "pageNoEnd < pageNoStart");
         return 0;
     }
-    if (pageNoEnd - pageNoStart > SIZE_MAX / PAGE_SIZE) {
-        HILOG_ERROR(LOG_CORE, "pageNoEnd - pageNoStart > SIZE_MAX / PAGE_SIZE");
+    if (pageNoEnd - pageNoStart + 1 > SIZE_MAX / PAGE_SIZE) {
+        HILOG_ERROR(LOG_CORE, "pageNoEnd - pageNoStart + 1 > SIZE_MAX / PAGE_SIZE");
         return 0;
     }
-    return (pageNoEnd - pageNoStart) * PAGE_SIZE;
+    return (pageNoEnd - pageNoStart + 1) * PAGE_SIZE;
 }
 
 static inline uint64_t RoundUp(uint64_t val, size_t align)
