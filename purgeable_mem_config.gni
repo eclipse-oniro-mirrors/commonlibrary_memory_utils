@@ -12,5 +12,5 @@
 # limitations under the License.
 
 declare_args() {
-  purgeable_ashmem_enable = false
+  memory_utils_purgeable_ashmem_enable = false
 }

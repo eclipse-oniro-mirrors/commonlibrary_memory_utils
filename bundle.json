@@ -74,6 +74,9 @@
           "//commonlibrary/memory_utils/libmeminfo/test:libmeminfo_test",
           "//commonlibrary/memory_utils/libpurgeablemem/test:libpurgeablemem_test"
       ]
-    }
+    },
+    "features": [
+      "memory_utils_purgeable_ashmem_enable"
+    ]
   }
 }
