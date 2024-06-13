@@ -60,8 +60,6 @@ ohos_shared_library("libpurgeablemem") {
 ohos_shared_library("purgeable_memory_ndk") {
   include_dirs = [ "interfaces/kits/c" ]
 
-  ldflags = [ "-Wl,--exclude-libs=libunwind.a" ]
-
   sources = [ "c/src/purgeable_memory.c" ]
   deps = [ ":libpurgeablemem" ]
   external_deps = [
