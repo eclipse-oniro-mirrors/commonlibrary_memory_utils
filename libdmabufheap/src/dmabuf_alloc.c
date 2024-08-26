@@ -32,12 +32,13 @@
 
 static bool IsHeapNameValid(const char *heapName)
 {
-    size_t len = strlen(heapName);
-    if ((heapName == NULL) || (len == 0) ||
-        (len > HEAP_NAME_MAX_LEN)) {
+    if (heapName == NULL) {
         return false;
     }
-
+    size_t len = strlen(heapName);
+    if ((len == 0) || (len > HEAP_NAME_MAX_LEN)) {
+        return false;
+    }
     return true;
 }
 
