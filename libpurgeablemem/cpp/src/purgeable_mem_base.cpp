@@ -97,6 +97,7 @@ bool PurgeableMemBase::BeginRead()
 
 void PurgeableMemBase::EndRead()
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (isDataValid_) {
         Unpin();
     }
@@ -141,6 +142,7 @@ bool PurgeableMemBase::BeginWrite()
 
 void PurgeableMemBase::EndWrite()
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     Unpin();
 }
@@ -233,6 +235,7 @@ inline std::string PurgeableMemBase::ToString() const
 
 void PurgeableMemBase::SetRebuildSuccessCallback(std::function<void()> &callback)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (builder_) {
         builder_->SetRebuildSuccessCallback(callback);
     }
@@ -240,11 +243,13 @@ void PurgeableMemBase::SetRebuildSuccessCallback(std::function<void()> &callback
 
 bool PurgeableMemBase::IsDataValid()
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     return isDataValid_;
 }
 
 void PurgeableMemBase::SetDataValid(bool target)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     isDataValid_ = target;
 }
 } /* namespace PurgeableMem */
