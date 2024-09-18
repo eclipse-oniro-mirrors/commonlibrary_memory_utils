@@ -39,6 +39,15 @@ public:
      *          While return true if content recover success.
      * OS cannot reclaim the memory of the obj's content when this
      * function return true, until EndRead() is called.
+     * 
+     * Attension: the return value must be recevied and handled,
+     *            since the visiting of this object with the failure result
+     *            will cause unsuspected result.
+     * For example:
+     *               if (BeginRead()) {
+     *                   // visit this object
+     *                   EndRead();
+     *               }
      */
     bool BeginRead();
 
@@ -50,13 +59,22 @@ public:
     void EndRead();
 
     /*
-     * BeginRead: begin read the PurgeableMem obj.
+     * BeginRead: begin write the PurgeableMem obj.
      * Return:  return true if the obj's content is present.
      *          If content is purged(no present), system will recover its data,
      *          return false if content is purged and recover failed.
      *          While return true if content recover success.
      * OS cannot reclaim the memory of the obj's content when this
-     * function return true, until EndRead() is called.
+     * function return true, until EndWrite() is called.
+     * 
+     * Attension: the return value must be recevied and handled,
+     *            since the visiting of this object with the failure result
+     *            will cause unsuspected result.
+     * For example:
+     *               if (BeginWrite()) {
+     *                   // visit this object
+     *                   EndWrite();
+     *               }
      */
 
     bool BeginWrite();
