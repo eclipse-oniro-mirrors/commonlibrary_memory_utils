@@ -108,6 +108,15 @@ bool OH_PurgeableMemory_Destroy(OH_PurgeableMemory *purgObj);
  * OS cannot reclaim the memory of @purgObj's content when this
  * function return true, until PurgMemEndRead() is called.
  *
+ * Attension: the return value must be recevied and handled,
+ *            since the visiting of this object with the failure result
+ *            will cause unsuspected result.
+ * For example:
+ *               if (OH_PurgeableMemory_BeginRead()) {
+ *                   // visit this object
+ *                   OH_PurgeableMemory_EndRead();
+ *               }
+ *
  * @since 10
  * @version 1.0
  */
@@ -137,6 +146,15 @@ void OH_PurgeableMemory_EndRead(OH_PurgeableMemory *purgObj);
  *          While return true if content is successfully recovered.
  * OS cannot reclaim the memory of @purgObj's content when this
  * function return true, until PurgMemEndWrite() is called.
+ *
+ * Attension: the return value must be recevied and handled,
+ *            since the visiting of this object with the failure result
+ *            will cause unsuspected result.
+ * For example:
+ *               if (OH_PurgeableMemory_BeginWrite()) {
+ *                   // visit this object
+ *                   OH_PurgeableMemory_EndWrite();
+ *               }
  *
  * @since 10
  * @version 1.0
