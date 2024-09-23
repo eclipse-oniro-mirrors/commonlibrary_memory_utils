@@ -104,6 +104,8 @@ public:
     PurgeableMemBase& operator = (PurgeableMemBase&) = delete;
     PurgeableMemBase(PurgeableMemBase&&) noexcept = delete;
     PurgeableMemBase& operator = (PurgeableMemBase&&) noexcept = delete;
+    virtual int GetPinStatus() const;
+    virtual bool Pin();
 
 protected:
     void *dataPtr_ = nullptr;
@@ -114,10 +116,8 @@ protected:
     unsigned int buildDataCount_ = 0;
     bool BuildContent();
     bool IfNeedRebuild();
-    virtual bool Pin();
     virtual bool Unpin();
     virtual bool IsPurged();
-    virtual int GetPinStatus() const;
     virtual void AfterRebuildSucc();
     virtual std::string ToString() const;
 };
