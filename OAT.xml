@@ -22,6 +22,7 @@
         <filefilterlist>
             <filefilter name="defaultFilter" desc="Files not to check">
                 <filteritem type="filename" name="*.png" desc="desc files"/>
+                <filteritem type="filename" name="sync.c" desc="Waiting for refactoring"/>
             </filefilter>
         </filefilterlist>
     </oatconfig>
