@@ -15,6 +15,6 @@
 #ifndef COMM_UTILS_SYNC_H
 #define COMM_UTILS_SYNC_H
 
-int SyncWait(int num, int time);
+int SyncWait(int fileDescriptor, int timeout);
 
 #endif
