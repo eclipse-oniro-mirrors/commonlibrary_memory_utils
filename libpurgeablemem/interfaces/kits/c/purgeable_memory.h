@@ -16,7 +16,7 @@
 /**
  * @addtogroup memory
  * @{
- * 
+ *
  * @brief provides memory management capabilities
  *
  * provides features include operations such as memory alloction, memory free, and so on
