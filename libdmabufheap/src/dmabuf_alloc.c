@@ -76,7 +76,7 @@ int DmabufHeapOpen(const char *heapName)
     int fd = open(heapPath, O_RDONLY | O_CLOEXEC);
     if (fd < 0) {
         HILOG_ERROR(LOG_CORE, "file open faild, heapName = %s, errno = %d.", heapName, errno);
-        return -errno;
+        return fd;
     }
     long newFd = fd;
     memtrace((void *)newFd, HEAP_NAME_MAX_LEN, "DmabufHeap", true);
