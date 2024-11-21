@@ -74,6 +74,10 @@ int DmabufHeapOpen(const char *heapName)
         return -EINVAL;
     }
     int fd = open(heapPath, O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        HILOG_ERROR(LOG_CORE, "file open faild, heapName = %s, errno = %d.", heapName, errno);
+        return -errno;
+    }
     long newFd = fd;
     memtrace((void *)newFd, HEAP_NAME_MAX_LEN, "DmabufHeap", true);
     return fd;
@@ -119,6 +123,10 @@ int DmabufHeapBufferFree(DmabufHeapBuffer *buffer)
         return -EINVAL;
     }
     memtrace((void *)buffer, buffer->size, "DmabufHeap", false);
+    if (buffer->fd < 0) {
+        HILOG_ERROR(LOG_CORE, "%{public}s: Invalid file descriptor!", __func__);
+        return -EINVAL;
+    }
     return close(buffer->fd);
 }
 
