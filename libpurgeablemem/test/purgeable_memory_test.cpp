@@ -51,8 +51,8 @@ class PurgeableMemoryTest : public testing::Test {
 public:
     static void SetUpTestCase();
     static void TearDownTestCase();
-    void SetUp();
-    void TearDown();
+    void SetUp() override;
+    void TearDown() override;
 };
 
 void PurgeableMemoryTest::SetUpTestCase()
