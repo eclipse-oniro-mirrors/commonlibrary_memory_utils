@@ -11,6 +11,4 @@
 # See the License for the specific language governing permissions
 # and limitations under the License.
 
-declare_args() {
-  memory_utils_purgeable_ashmem_enable = false
-}
+import("//build/config/components/memory_utils/purgeable_mem_config.gni")
