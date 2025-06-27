@@ -181,7 +181,6 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
             /* double check munmap result: if uxpte is set to no_present */
             if (UxpteIsEnabled() && !IsPurged(purgObj)) {
                 PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: munmap dataPtr succ, but uxpte present", __func__);
-                err = PM_UXPT_PRESENT_DATA_PURGED;
             }
             purgObj->dataPtr = NULL;
         }
