@@ -26,7 +26,7 @@ ohos_shared_library("libdmabufheap") {
   ]
   public_configs = [ ":libdmabufheap_config" ]
   subsystem_name = "commonlibrary"
-  innerapi_tags = [ "chipsetsdk" ]
+  innerapi_tags = [ "chipsetsdk_sp" ]
   part_name = "memory_utils"
 
   sanitize = {
