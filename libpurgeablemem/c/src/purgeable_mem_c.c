@@ -153,15 +153,15 @@ struct PurgMem *PurgMemCreate(size_t len, PurgMemModifyFunc func, void *funcPara
 bool PurgMemDestroy(struct PurgMem *purgObj)
 {
     IF_NULL_LOG_ACTION(purgObj, "input is NULL", return true);
+    int rwlockRet = pthread_rwlock_wrlock(&(purgObj->rwlock));
+    if (rwlockRet) {
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: wrlock fail. %{public}d", __func__, rwlockRet);
+        return false;
+    }
     PM_HILOG_INFO_C(LOG_CORE, "%{public}s: LogPurgMemInfo:", __func__);
     LogPurgMemInfo(purgObj);
 
     PMState err = PM_OK;
-    /* destroy rwlock */
-    int ret = pthread_rwlock_destroy(&(purgObj->rwlock));
-    if (ret != 0) {
-        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: pthread_rwlock_destroy fail, %{public}d", __func__, ret);
-    }
     /* destroy builder */
     if (purgObj->builder) {
         if (!PurgMemBuilderDestroy(purgObj->builder)) {
@@ -197,8 +197,14 @@ bool PurgMemDestroy(struct PurgMem *purgObj)
             purgObj->uxPageTable = NULL;
         }
     }
+    pthread_rwlock_unlock(&(purgObj->rwlock));
 
     if (err == PM_OK) {
+        /* destroy rwlock */
+        rwlockRet = pthread_rwlock_destroy(&(purgObj->rwlock));
+        if (rwlockRet != 0) {
+            PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: pthread_rwlock_destroy fail, %{public}d", __func__, rwlockRet);
+        }
         free(purgObj);
         purgObj = NULL; /* set input para NULL to avoid UAF */
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: succ", __func__);
