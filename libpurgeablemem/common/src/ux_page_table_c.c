@@ -285,16 +285,16 @@ static void UxpteAdd(uxpte_t *pte, size_t incNum)
     uxpte_t newVal = 0;
     do {
         old = UxpteLoad(pte);
+        if (IsUxpteUnderReclaim(old)) {
+            sched_yield();
+            continue;
+        }
         if (old + incNum < old || old + incNum < incNum) {
             break;
         }
         newVal = old + incNum;
         if (ULONG_MAX - old < incNum) {
             return;
-        }
-        if (IsUxpteUnderReclaim(old)) {
-            sched_yield();
-            continue;
         }
     } while (!UxpteCAS_(pte, old, newVal));
 }
