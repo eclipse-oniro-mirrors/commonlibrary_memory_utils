@@ -21,6 +21,7 @@
 
 #include "file_ex.h" // LoadStringFromFile
 #include "hilog/log.h"
+#include <dlfcn.h>
 
 #undef LOG_TAG
 #define LOG_TAG "MemInfo"
@@ -34,6 +35,55 @@ namespace MemInfo {
 using namespace OHOS::HDI::Memorytracker::V1_0;
 constexpr int PAGE_TO_KB = 4;
 constexpr int BYTE_PER_KB = 1024;
+
+// get deduplicated DMA information
+std::vector<DmaNodeInfoWrapper> GetDmaInfo(int pid)
+{
+    auto libMemClientHandle = dlopen("libmemmgrclient.z.so", RTLD_NOW);
+    if (!libMemClientHandle) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, dlopen libmemmgrclient failed.", __func__);
+        return {};
+    }
+    using GetDmaVecFunc = DmaNodeInfo* (*)(int*, int);
+    using FreeArrFunc = void (*)(DmaNodeInfo*);
+    auto getDmaInfoFunc = reinterpret_cast<GetDmaVecFunc>(dlsym(libMemClientHandle, "GetDmaArr"));
+    auto freeArrFunc = reinterpret_cast<FreeArrFunc>(dlsym(libMemClientHandle, "FreeArr"));
+    if (!getDmaInfoFunc || !freeArrFunc) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, dlsym GetDmaArr and FreeArr failed.", __func__);
+        dlclose(libMemClientHandle);
+        return {};
+    }
+    int size = 0;
+    DmaNodeInfo *dmaArr = getDmaInfoFunc(&size, pid);
+    // process(pid) has dmabuf, but failed to allocate memory.
+    if (size > 0 && !dmaArr) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, getDmaInfoFunc allocate memory failed.", __func__);
+        dlclose(libMemClientHandle);
+        return {};
+    }
+    std::vector<DmaNodeInfoWrapper> dmaVec;
+    for (int i = 0; i < size; ++i) {
+        dmaVec.push_back({
+            std::string(dmaArr[i].process, dmaArr[i].process_size),
+            dmaArr[i].pid,
+            dmaArr[i].fd,
+            dmaArr[i].size_bytes,
+            dmaArr[i].ino,
+            dmaArr[i].exp_pid,
+            std::string(dmaArr[i].exp_task_comm, dmaArr[i].exp_task_comm_size),
+            std::string(dmaArr[i].buf_name, dmaArr[i].buf_name_size),
+            std::string(dmaArr[i].exp_name, dmaArr[i].exp_name_size),
+            dmaArr[i].can_reclaim,
+            dmaArr[i].is_reclaim,
+            std::string(dmaArr[i].buf_type, dmaArr[i].buf_type_size),
+            std::string(dmaArr[i].reclaim_info, dmaArr[i].reclaim_info_size),
+            std::string(dmaArr[i].leak_type, dmaArr[i].leak_type_size),
+        });
+    }
+    freeArrFunc(dmaArr);
+    dlclose(libMemClientHandle);
+    return dmaVec;
+}
 
 // get Rss from statm
 uint64_t GetRssByPid(const int pid)
