@@ -48,6 +48,29 @@ void MemInfoTest::TearDown()
 {
 }
 
+HWTEST_F(MemInfoTest, GetDmaInfo_Test_001, TestSize.Level1)
+{
+    int pid = -1;
+    std::vector<DmaNodeInfoWrapper> dmaVec = GetDmaInfo(pid);
+    uint64_t size = dmaVec.size();
+    std::cout << "size = " << size << std::endl;
+    for (int i = 0; i < size; ++i) {
+        dmaVec[i].print();
+    }
+    ASSERT_EQ(size > 0, true);
+}
+
+HWTEST_F(MemInfoTest, GetDmaInfo_Test_002, TestSize.Level1)
+{
+    int pid = -1;
+    std::vector<DmaNodeInfoWrapper> dmaVec = GetDmaInfo(pid);
+    pid = dmaVec[0].pid;
+    dmaVec = GetDmaInfo(pid);
+    uint64_t size = dmaVec.size();
+    std::cout << "pid = " << pid << ", size = " << size << std::endl;
+    ASSERT_EQ(size > 0, true);
+}
+
 HWTEST_F(MemInfoTest, GetRssByPid_Test_001, TestSize.Level1)
 {
     int pid = 1;
