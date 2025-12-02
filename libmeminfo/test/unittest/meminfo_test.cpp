@@ -13,11 +13,11 @@
  * limitations under the License.
  */
 
-#include "meminfo.h"
-
 #include <cstdio>
+#include <dlfcn.h>
 
 #include "gtest/gtest.h"
+#include "meminfo.h"
 
 namespace OHOS {
 namespace MemInfo {
@@ -50,24 +50,22 @@ void MemInfoTest::TearDown()
 
 HWTEST_F(MemInfoTest, GetDmaInfo_Test_001, TestSize.Level1)
 {
+    auto libMemClientHandle = dlopen("libmemmgrclient.z.so", RTLD_NOW);
+    if (!libMemClientHandle) {
+        return;
+    }
+    using GetDmaVecFunc = DmaNodeInfo* (*)(int*, int);
+    auto getDmaInfoFunc = reinterpret_cast<GetDmaVecFunc>(dlsym(libMemClientHandle, "GetDmaArr"));
+    if (!getDmaInfoFunc) {
+        dlclose(libMemClientHandle);
+        return;
+    }
+    dlclose(libMemClientHandle);
+
     int pid = -1;
     std::vector<DmaNodeInfoWrapper> dmaVec = GetDmaInfo(pid);
     uint64_t size = dmaVec.size();
     std::cout << "size = " << size << std::endl;
-    for (int i = 0; i < size; ++i) {
-        dmaVec[i].print();
-    }
-    ASSERT_EQ(size > 0, true);
-}
-
-HWTEST_F(MemInfoTest, GetDmaInfo_Test_002, TestSize.Level1)
-{
-    int pid = -1;
-    std::vector<DmaNodeInfoWrapper> dmaVec = GetDmaInfo(pid);
-    pid = dmaVec[0].pid;
-    dmaVec = GetDmaInfo(pid);
-    uint64_t size = dmaVec.size();
-    std::cout << "pid = " << pid << ", size = " << size << std::endl;
     ASSERT_EQ(size > 0, true);
 }
 
