@@ -15,7 +15,7 @@ import("//build/ohos.gni")
 import("//build/ohos_var.gni")
 import("//build/test.gni")
 
-module_output_path = "libpurgeablemem/"
+module_output_path = "memory_utils/memory_utils"
 
 purgeable_external_deps = [
   "c_utils:utils",
