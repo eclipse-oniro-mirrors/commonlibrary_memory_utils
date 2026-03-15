@@ -48,25 +48,48 @@ void MemInfoTest::TearDown()
 {
 }
 
-HWTEST_F(MemInfoTest, GetDmaInfo_Test_001, TestSize.Level1)
+bool isDlopenSucc(std::string soName, std::string funcName)
 {
-    auto libMemClientHandle = dlopen("libmemmgrclient.z.so", RTLD_NOW);
+    auto libMemClientHandle = dlopen(soName.c_str(), RTLD_NOW);
     if (!libMemClientHandle) {
-        return;
+        return false;
     }
     using GetDmaVecFunc = DmaNodeInfo* (*)(int*, int);
-    auto getDmaInfoFunc = reinterpret_cast<GetDmaVecFunc>(dlsym(libMemClientHandle, "GetDmaArr"));
+    auto getDmaInfoFunc = reinterpret_cast<GetDmaVecFunc>(dlsym(libMemClientHandle, funcName.c_str()));
     if (!getDmaInfoFunc) {
         dlclose(libMemClientHandle);
-        return;
+        return false;
     }
     dlclose(libMemClientHandle);
+    return true;
+}
+
+HWTEST_F(MemInfoTest, GetDmaInfo_Test_001, TestSize.Level1)
+{
+    if (!isDlopenSucc("libmemmgrclient.z.so", "GetDmaArr")) {
+        return;
+    }
 
     int pid = -1;
     std::vector<DmaNodeInfoWrapper> dmaVec = GetDmaInfo(pid);
     uint64_t size = dmaVec.size();
     std::cout << "size = " << size << std::endl;
     ASSERT_EQ(size > 0, true);
+}
+
+HWTEST_F(MemInfoTest, GetDmaValueByPidList_Test_001, TestSize.Level1)
+{
+    if (!isDlopenSucc("libmemmgrclient.z.so", "GetDmaValueByPidList")) {
+        return;
+    }
+
+    std::vector<int> pidList;
+    for (int i = 1; i <= 3000; ++i) {
+        pidList.push_back(i);
+    }
+    int64_t dmaSum = GetDmaValueByPidList(pidList);
+    std::cout << "dmaSum = " << dmaSum << std::endl;
+    ASSERT_EQ(dmaSum >= 0, true);
 }
 
 HWTEST_F(MemInfoTest, GetRssByPid_Test_001, TestSize.Level1)
@@ -122,6 +145,24 @@ HWTEST_F(MemInfoTest, GetSwapPssByPid_Test_002, TestSize.Level1)
     ASSERT_EQ(size == 0, true);
 }
 
+HWTEST_F(MemInfoTest, GetPssAndSwapPssByPid_Test_001, TestSize.Level1)
+{
+    int pid = 1;
+    uint64_t size = 0;
+    size = GetPssAndSwapPssByPid(pid);
+    std::cout << "size = " << size << std::endl;
+    system("cat /proc/1/smaps_rollup");
+    ASSERT_EQ(size >= 0, true);
+}
+
+HWTEST_F(MemInfoTest, GetPssAndSwapPssByPid_Test_002, TestSize.Level1)
+{
+    int pid = -1;
+    uint64_t size = 0;
+    size = GetPssAndSwapPssByPid(pid);
+    ASSERT_EQ(size == 0, true);
+}
+
 HWTEST_F(MemInfoTest, GetGraphicsMemory_Test, TestSize.Level1)
 {
     int pid = 1;
@@ -130,5 +171,21 @@ HWTEST_F(MemInfoTest, GetGraphicsMemory_Test, TestSize.Level1)
     GetGraphicsMemory(pid, gl, graph);
     ASSERT_EQ(gl == 0, true);
 }
+
+HWTEST_F(MemInfoTest, GetAppsTotalMemory_Test, TestSize.Level1)
+{
+    if (!isDlopenSucc("libmemmgrclient.z.so", "GetDmaValueByPidList")) {
+        return;
+    }
+
+    std::vector<int> pidList;
+    for (int i = 1; i <= 3000; ++i) {
+        pidList.push_back(i);
+    }
+    int64_t totalMem = GetAppsTotalMemory(pidList);
+    std::cout << "totalMem = " << totalMem << std::endl;
+    ASSERT_EQ(totalMem >= 0, true);
+}
+
 }
 }

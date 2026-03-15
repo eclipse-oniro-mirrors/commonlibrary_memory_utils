@@ -87,6 +87,9 @@ struct DmaNodeInfoWrapper {
 // get deduplicated DMA information
 std::vector<DmaNodeInfoWrapper> GetDmaInfo(int pid);
 
+// get the sum of DMA after deduplication
+int64_t GetDmaValueByPidList(const std::vector<int> &pidList);
+
 // get Rss from statm
 uint64_t GetRssByPid(const int pid);
 
@@ -96,8 +99,15 @@ uint64_t GetPssByPid(const int pid);
 // get SwapPss from smaps_rollup
 uint64_t GetSwapPssByPid(const int pid);
 
+// get Pss and SwapPss from smaps_rollup
+uint64_t GetPssAndSwapPssByPid(const int pid);
+
 // get graphics memory from hdi
 bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph);
+
+// get the total memory usage of app, include DMA, GL, Pss and SwapPss
+int64_t GetAppsTotalMemory(const std::vector<int> &pidList);
+
 } /* namespace MemInfo */
 } /* namespace OHOS */
 #endif /* LIB_MEM_INFO_H */
