@@ -85,6 +85,29 @@ std::vector<DmaNodeInfoWrapper> GetDmaInfo(int pid)
     return dmaVec;
 }
 
+// get the sum of DMA after deduplication
+int64_t GetDmaValueByPidList(const std::vector<int> &pidList)
+{
+    auto libMemClientHandle = dlopen("libmemmgrclient.z.so", RTLD_NOW);
+    if (!libMemClientHandle) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, dlopen libmemmgrclient failed.", __func__);
+        return {};
+    }
+    using GetDmaValueFunc = int64_t (*)(const int*, const int);
+    auto func = reinterpret_cast<GetDmaValueFunc>(dlsym(libMemClientHandle, "GetDmaValueByPidList"));
+    if (!func) {
+        HILOG_ERROR(LOG_CORE, "%{public}s, dlsym GetDmaValueByPidList failed.", __func__);
+        dlclose(libMemClientHandle);
+        return {};
+    }
+
+    const int *pidArr = pidList.data();
+    int pidSize = static_cast<int>(pidList.size());
+    int64_t dmaSum = func(pidArr, pidSize);
+    dlclose(libMemClientHandle);
+    return dmaSum;
+}
+
 // get Rss from statm
 uint64_t GetRssByPid(const int pid)
 {
@@ -163,6 +186,33 @@ uint64_t GetSwapPssByPid(const int pid)
     return size;
 }
 
+// get Pss and SwapPss from smaps_rollup
+uint64_t GetPssAndSwapPssByPid(const int pid)
+{
+    uint64_t size = 0;
+    std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
+    std::ifstream in(filename);
+    if (!in) {
+        HILOG_ERROR(LOG_CORE, "File %{public}s not found.\n", filename.c_str());
+        return size;
+    }
+
+    std::string content;
+    while (in.good() && getline(in, content)) {
+        std::string::size_type typePos = content.find(":");
+        if (typePos != content.npos) {
+            std::string type = content.substr(0, typePos);
+            if (type == "Pss" || type == "SwapPss") {
+                std::string valueStr = content.substr(typePos + 1);
+                const int base = 10;
+                size += strtoull(valueStr.c_str(), nullptr, base);
+            }
+        }
+    }
+    in.close();
+    return size;
+}
+
 // get graphics memory from hdi
 bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph)
 {
@@ -199,5 +249,23 @@ bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph)
     }
     return ret;
 }
+
+// get the total memory usage of app, include DMA, GL, Pss and SwapPss
+int64_t GetAppsTotalMemory(const std::vector<int> &pidList)
+{
+    int64_t dmaMem = static_cast<int64_t>(GetDmaValueByPidList(pidList) / BYTE_PER_KB);
+    int64_t pssAndSwapPssMem = 0;
+    int64_t gpuMem = 0;
+    uint64_t gl;
+    uint64_t graph;
+
+    for (auto pid : pidList) {
+        pssAndSwapPssMem += GetPssAndSwapPssByPid(pid);
+        GetGraphicsMemory(pid, gl, graph);
+        gpuMem += static_cast<int64_t>(gl);
+    }
+    return dmaMem + pssAndSwapPssMem + gpuMem;
+}
+
 } /* namespace MemInfo */
 } /* namespace OHOS */
