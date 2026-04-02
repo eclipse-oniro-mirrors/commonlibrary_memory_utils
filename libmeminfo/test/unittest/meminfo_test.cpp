@@ -54,9 +54,8 @@ bool isDlopenSucc(std::string soName, std::string funcName)
     if (!libMemClientHandle) {
         return false;
     }
-    using GetDmaVecFunc = DmaNodeInfo* (*)(int*, int);
-    auto getDmaInfoFunc = reinterpret_cast<GetDmaVecFunc>(dlsym(libMemClientHandle, funcName.c_str()));
-    if (!getDmaInfoFunc) {
+    auto funcPtr = dlsym(libMemClientHandle, funcName.c_str());
+    if (!funcPtr) {
         dlclose(libMemClientHandle);
         return false;
     }
