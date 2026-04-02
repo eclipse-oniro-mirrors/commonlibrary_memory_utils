@@ -91,14 +91,14 @@ int64_t GetDmaValueByPidList(const std::vector<int> &pidList)
     auto libMemClientHandle = dlopen("libmemmgrclient.z.so", RTLD_NOW);
     if (!libMemClientHandle) {
         HILOG_ERROR(LOG_CORE, "%{public}s, dlopen libmemmgrclient failed.", __func__);
-        return {};
+        return -1;
     }
     using GetDmaValueFunc = int64_t (*)(const int*, const int);
     auto func = reinterpret_cast<GetDmaValueFunc>(dlsym(libMemClientHandle, "GetDmaValueByPidList"));
     if (!func) {
         HILOG_ERROR(LOG_CORE, "%{public}s, dlsym GetDmaValueByPidList failed.", __func__);
         dlclose(libMemClientHandle);
-        return {};
+        return -1;
     }
 
     const int *pidArr = pidList.data();
@@ -254,6 +254,9 @@ bool GetGraphicsMemory(const int pid, uint64_t &gl, uint64_t &graph)
 int64_t GetAppsTotalMemory(const std::vector<int> &pidList)
 {
     int64_t dmaMem = static_cast<int64_t>(GetDmaValueByPidList(pidList) / BYTE_PER_KB);
+    if (dmaMem < 0) {
+        return -1;
+    }
     int64_t pssAndSwapPssMem = 0;
     int64_t gpuMem = 0;
     uint64_t gl;
