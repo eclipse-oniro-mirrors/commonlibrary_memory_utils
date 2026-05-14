@@ -18,9 +18,9 @@ module_output_path = "memory_utils/memory_utils"
 ohos_unittest("MemInfoTest") {
   module_out_path = module_output_path
   sources = [ "unittest/meminfo_test.cpp" ]
+  deps = [ "//commonlibrary/memory_utils/libmeminfo:libmeminfo" ]
   external_deps = [
     "c_utils:utils",
-    "memory_utils:libmeminfo",
   ]
 }
 
