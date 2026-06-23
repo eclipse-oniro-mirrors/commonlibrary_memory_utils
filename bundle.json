@@ -18,6 +18,7 @@
       "ram": "200KB",
     "deps": {
       "components": [
+        "bounds_checking_function",
         "c_utils",
         "drivers_interface_memorytracker",
         "hilog",
