@@ -21,6 +21,7 @@ ohos_shared_library("libdmabufheap") {
   sources = [ "src/dmabuf_alloc.c" ]
   include_dirs = [ "include" ]
   external_deps = [
+    "bounds_checking_function:libsec_shared",
     "c_utils:utils",
     "hilog:libhilog",
   ]

@@ -18,6 +18,7 @@ import("//build/test.gni")
 module_output_path = "memory_utils/memory_utils"
 
 purgeable_external_deps = [
+  "bounds_checking_function:libsec_shared",
   "c_utils:utils",
   "hilog:libhilog",
 ]
