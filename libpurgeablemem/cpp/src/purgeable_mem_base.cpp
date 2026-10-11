@@ -20,6 +20,7 @@
 #include "pm_state_c.h"
 #include "pm_smartptr_util.h"
 #include "pm_log.h"
+#include "hitrace_meter.h"
 
 #include "purgeable_mem_base.h"
 
@@ -30,6 +31,20 @@ namespace PurgeableMem {
 #endif
 #define LOG_TAG "PurgeableMem"
 const int MAX_BUILD_TRYTIMES = 3;
+
+namespace {
+/* PMStartTrace: start a hitrace named @name for the purgeable memory operations. */
+void PMStartTrace(const std::string &name)
+{
+    StartTraceEx(HITRACE_LEVEL_INFO, HITRACE_TAG_ZIMAGE, name.c_str(), "");
+}
+
+/* PMFinishTrace: finish the hitrace started by PMStartTrace. */
+void PMFinishTrace()
+{
+    FinishTraceEx(HITRACE_LEVEL_INFO, HITRACE_TAG_ZIMAGE);
+}
+}
 
 static inline size_t RoundUp(size_t val, size_t align)
 {
@@ -57,41 +72,50 @@ bool PurgeableMemBase::BeginRead()
     if (!isDataValid_) {
         return false;
     }
+    return BeginReadUnlocked();
+}
 
-    bool ret = false;
-    int tryTimes = 0;
-
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
+/*
+ * BeginReadUnlocked: pin the content and rebuild it if purged.
+ * The caller must hold dataLock_. The content stays pinned on success.
+ */
+bool PurgeableMemBase::BeginReadUnlocked()
+{
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
+        __func__, GetPinStatus(), ToString().c_str());
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginRead", return false);
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginRead", return false);
+    std::string beginReadTraceName = "PurgeableMem::BeginRead(size=" + std::to_string(dataSizeInput_) + ")";
+    PMStartTrace(beginReadTraceName);
     Pin();
     PMState err = PM_OK;
-    while (true) {
-        if (!IfNeedRebuild()) {
-            PM_HILOG_DEBUG(LOG_CORE, "%{public}s: not purged, return true. MAP_PUR=0x%{public}x",
-                __func__, MAP_PURGEABLE);
-            ret = true;
-            break;
-        }
-
-        bool succ = BuildContent();
-        if (succ) {
-            AfterRebuildSucc();
-        }
-        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: purged, built %{public}s", __func__, succ ? "succ" : "fail");
-
-        tryTimes++;
-        if (!succ || tryTimes > MAX_BUILD_TRYTIMES) {
+    int tryTimes = 0;
+    while (IfNeedRebuild()) {
+        if (tryTimes > MAX_BUILD_TRYTIMES) {
             err = PMB_BUILD_ALL_FAIL;
             break;
         }
+        tryTimes++;
+        if (!BuildContent()) {
+            PM_HILOG_DEBUG(LOG_CORE, "%{public}s: rebuilt fail", __func__);
+            err = PMB_BUILD_ALL_FAIL;
+            break;
+        }
+        AfterRebuildSucc();
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: rebuilt succ", __func__);
     }
 
-    if (!ret) {
+    bool ret = (err == PM_OK);
+    if (ret) {
+        PM_HILOG_DEBUG(LOG_CORE,
+            "%{public}s: no need rebuild, MAP_PUR=0x%{public}x buildDataCount=%{public}d isPurged=%{public}s",
+            __func__, MAP_PURGEABLE, buildDataCount_, IsPurged() ? "true" : "false");
+    } else {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: err %{public}s, UxptePut. tryTime:%{public}d",
             __func__, GetPMStateName(err), tryTimes);
         Unpin();
     }
+    PMFinishTrace();
     return ret;
 }
 
@@ -99,19 +123,38 @@ void PurgeableMemBase::EndRead()
 {
     std::lock_guard<std::mutex> lock(dataLock_);
     if (isDataValid_) {
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
+            __func__, GetPinStatus(), ToString().c_str());
         Unpin();
     }
 
     return;
 }
 
+/*
+ * DisablePurgeable: ensure the content is present (rebuild it if purged),
+ * then disable the purgeable feature. The content stays pinned after a
+ * successful BeginReadUnlocked, and the pin is never released once
+ * isSupport_ is off, so the kernel will not reclaim the content anymore.
+ */
+void PurgeableMemBase::DisablePurgeable()
+{
+    std::lock_guard<std::mutex> lock(dataLock_);
+    if (!BeginReadUnlocked()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: rebuild content fail, keep purgeable", __func__);
+        return;
+    }
+    isSupport_ = false;
+}
+
 bool PurgeableMemBase::BeginWrite()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
     std::lock_guard<std::mutex> lock(dataLock_);
     if (dataPtr_ == nullptr) {
         return false;
     }
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
+        __func__, GetPinStatus(), ToString().c_str());
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginWrite", return false);
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginWrite", return false);
 
@@ -120,10 +163,15 @@ bool PurgeableMemBase::BeginWrite()
     do {
         if (!IfNeedRebuild()) {
             /* data is not purged, return true */
+            PM_HILOG_DEBUG(LOG_CORE,
+                "%{public}s: no need rebuild, buildDataCount=%{public}d isPurged=%{public}s",
+                __func__, buildDataCount_, IsPurged() ? "true" : "false");
             break;
         }
         /* data purged, rebuild it */
-        if (BuildContent()) {
+        bool succ = BuildContent();
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: rebuilt %{public}s", __func__, succ ? "succ" : "fail");
+        if (succ) {
             /* data rebuild succ, return true */
             AfterRebuildSucc();
             break;
@@ -143,7 +191,8 @@ bool PurgeableMemBase::BeginWrite()
 void PurgeableMemBase::EndWrite()
 {
     std::lock_guard<std::mutex> lock(dataLock_);
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s %{public}s", __func__, ToString().c_str());
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
+        __func__, GetPinStatus(), ToString().c_str());
     Unpin();
 }
 
@@ -196,9 +245,12 @@ bool PurgeableMemBase::IsPurged()
 bool PurgeableMemBase::BuildContent()
 {
     bool succ = false;
+    std::string buildTraceName = "PurgeableMem::BuildContent(size=" + std::to_string(dataSizeInput_) + ")";
+    PMStartTrace(buildTraceName);
     /* clear content before rebuild */
     if (memset_s(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE), 0, dataSizeInput_) != EOK) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s, clear content fail", __func__);
+        PMFinishTrace();
         return succ;
     }
     /* builder_ and dataPtr_ is never nullptr since it is checked by BeginAccess() before */
@@ -206,6 +258,7 @@ bool PurgeableMemBase::BuildContent()
     if (succ) {
         buildDataCount_++;
     }
+    PMFinishTrace();
     return succ;
 }
 
@@ -225,12 +278,33 @@ bool PurgeableMemBase::Unpin()
 
 int PurgeableMemBase::GetPinStatus() const
 {
+    /* purgeable feature not active */
+    return -1;
+}
+
+PurgMemType PurgeableMemBase::GetPurgMemType() const
+{
+    return PURG_MEM_TYPE_ANONYMOUS;
+}
+
+int PurgeableMemBase::GetFd() const
+{
+    return -1;
+}
+
+unsigned long PurgeableMemBase::GetIno() const
+{
     return 0;
 }
 
-inline std::string PurgeableMemBase::ToString() const
+std::string PurgeableMemBase::ToString() const
 {
-    return "";
+    std::string dataptrStr = dataPtr_ ? std::to_string((unsigned long long)dataPtr_) : "0";
+    return "type:" + std::to_string(GetPurgMemType()) +
+           " fd:" + std::to_string(GetFd()) +
+           " ino:" + std::to_string(GetIno()) +
+           " dataAddr:" + dataptrStr +
+           " dataSize:" + std::to_string(dataSizeInput_);
 }
 
 void PurgeableMemBase::SetRebuildSuccessCallback(std::function<void()> &callback)
