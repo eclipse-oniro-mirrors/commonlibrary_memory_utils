@@ -51,18 +51,33 @@ public:
     ~PurgeableAshMem() override;
     int GetAshmemFd();
     void ResizeData(size_t newSize) override;
+    /*
+     * Allocate a new ashmem region and mark it as purgeable.
+     * SET_PURGEABLE sets the kernel default pin count to 1 (pinned).
+     * Calls Unpin() so the empty buffer can be reclaimed by the kernel
+     * until the first BeginRead/BeginWrite triggers BuildContent via builder.
+     * Does NOT increment buildDataCount_.
+     */
+    bool CreatePurgeableData();
+    /*
+     * Take over an existing ashmem region that already contains data,
+     * converting it to purgeable.
+     * Increments buildDataCount_ — assumes data is already present.
+     * Does NOT call Unpin — buffer already has data, keep it pinned.
+     */
     bool ChangeAshmemData(size_t size, int fd, void *data);
+
+    PurgMemType GetPurgMemType() const override;
+    int GetFd() const override;
 
 protected:
     int ashmemFd_;
-    int isSupport_;
     bool isChange_;
     ashmem_pin pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
     bool Pin() override;
     bool Unpin() override;
     bool IsPurged() override;
     int GetPinStatus() const override;
-    bool CreatePurgeableData();
     void AfterRebuildSucc() override;
     std::string ToString() const override;
 };

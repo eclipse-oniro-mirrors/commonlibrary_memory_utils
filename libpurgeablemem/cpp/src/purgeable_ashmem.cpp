@@ -115,6 +115,17 @@ bool PurgeableAshMem::CreatePurgeableData()
     if (dataSizeInput_ == 0) {
         return false;
     }
+    /* release the previous self-allocated ashmem region, if any */
+    if (!isChange_ && dataPtr_) {
+        if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
+            PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
+        }
+        dataPtr_ = nullptr;
+        if (ashmemFd_ > 0) {
+            close(ashmemFd_);
+            ashmemFd_ = -1;
+        }
+    }
     size_t size = RoundUp(dataSizeInput_, PAGE_SIZE);
     int fd = AshmemCreate("PurgeableAshmem", size);
     if (fd < 0) {
@@ -133,11 +144,14 @@ bool PurgeableAshMem::CreatePurgeableData()
         close(ashmemFd_);
         return false;
     }
+    isChange_ = false;
+    /* new empty region, the first access rebuilds it by builder */
+    buildDataCount_ = 0;
     TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_SET_PURGEABLE));
     if (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1) {
         isSupport_ = true;
+        Unpin();
     }
-    Unpin();
     return true;
 }
 
@@ -148,8 +162,6 @@ bool PurgeableAshMem::Pin()
     }
     if (ashmemFd_ > 0) {
         TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_PIN, &pin_));
-        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: fd:%{public}d PURGEABLE_GET_PIN_STATE: %{public}d",
-                       __func__, ashmemFd_, ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_));
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "ashmemFd_ not exist!!");
         return false;
@@ -164,8 +176,6 @@ bool PurgeableAshMem::Unpin()
     }
     if (ashmemFd_ > 0) {
         TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_UNPIN, &pin_));
-        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: fd:%{public}d PURGEABLE_GET_PIN_STATE: %{public}d",
-                       __func__, ashmemFd_, ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_));
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "ashmemFd_ not exist!!");
         return false;
@@ -175,13 +185,10 @@ bool PurgeableAshMem::Unpin()
 
 int PurgeableAshMem::GetPinStatus() const
 {
-    int ret = 0;
     if (!isSupport_) {
-        return ret;
+        return -1;
     }
-    ret = ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_);
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s: GetPinStatus %{public}d", __func__, ret);
-    return ret;
+    return ioctl(ashmemFd_, ASHMEM_GET_PIN_STATUS, &pin_);
 }
 
 void PurgeableAshMem::AfterRebuildSucc()
@@ -191,41 +198,46 @@ void PurgeableAshMem::AfterRebuildSucc()
 
 void PurgeableAshMem::ResizeData(size_t newSize)
 {
-    if (newSize <= 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
-        PM_HILOG_DEBUG(LOG_CORE, "Failed to apply for memory");
+    if (newSize == 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, newSize);
+        return;
+    }
+    if (isChange_) {
+        /* the taken-over ashmem region is owned by caller, cannot resize it */
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: external buffer cannot be resized", __func__);
         return;
     }
     if (dataPtr_) {
         if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
-        } else {
-            dataPtr_ = nullptr;
-            if (ashmemFd_ > 0) {
-                close(ashmemFd_);
-            }
         }
+        dataPtr_ = nullptr;
+    }
+    if (ashmemFd_ > 0) {
+        close(ashmemFd_);
+        ashmemFd_ = -1;
     }
     dataSizeInput_ = newSize;
     if (!CreatePurgeableData()) {
-        PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
-        return;
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: resize to %{public}zu fail", __func__, newSize);
     }
 }
 
 bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
 {
     if (size <= 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
-        PM_HILOG_DEBUG(LOG_CORE, "Failed to apply for memory");
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
         return false;
     }
-    if (dataPtr_) {
+    /* release the previous self-allocated ashmem region, if any */
+    if (!isChange_ && dataPtr_) {
         if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
-        } else {
-            dataPtr_ = nullptr;
-            if (ashmemFd_ > 0) {
-                close(ashmemFd_);
-            }
+        }
+        dataPtr_ = nullptr;
+        if (ashmemFd_ > 0) {
+            close(ashmemFd_);
+            ashmemFd_ = -1;
         }
     }
     dataSizeInput_ = size;
@@ -237,13 +249,24 @@ bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
     if (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1) {
         isSupport_ = true;
     }
-    Unpin();
     return true;
 }
 
-inline std::string PurgeableAshMem::ToString() const
+std::string PurgeableAshMem::ToString() const
 {
-    return "";
+    return PurgeableMemBase::ToString() +
+           " isSupport:" + std::to_string(isSupport_) +
+           " isChange:" + std::to_string(isChange_);
+}
+
+PurgMemType PurgeableAshMem::GetPurgMemType() const
+{
+    return PURG_MEM_TYPE_ASHMEM;
+}
+
+int PurgeableAshMem::GetFd() const
+{
+    return ashmemFd_;
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

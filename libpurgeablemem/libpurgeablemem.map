@@ -16,6 +16,7 @@
         extern "C++" {
             OHOS::PurgeableMem::PurgeableMem::*;
             OHOS::PurgeableMem::PurgeableAshMem::*;
+            OHOS::PurgeableMem::PurgeableDmaBuf::*;
             OHOS::PurgeableMem::PurgeableMemBase::*;
             OHOS::PurgeableMem::PurgeableMemBuilder::*;
             OHOS::PurgeableMem::UxPageTable::*;
@@ -28,6 +29,12 @@
         # Thunk symbols
         _ZTh*N4OHOS12PurgeableMem*;
         _ZTv*N4OHOS12PurgeableMem*;
+        _ZTVN4OHOS12PurgeableMem15PurgeableDmaBuf*;
+        _ZTIN4OHOS12PurgeableMem15PurgeableDmaBuf*;
+        _ZTTN4OHOS12PurgeableMem15PurgeableDmaBuf*;
+        _ZTCN4OHOS12PurgeableMem15PurgeableDmaBuf*;
+        _ZTh*N4OHOS12PurgeableMem15PurgeableDmaBuf*;
+        _ZTv*N4OHOS12PurgeableMem15PurgeableDmaBuf*;
 
         # public c api
         PurgMemCreate;

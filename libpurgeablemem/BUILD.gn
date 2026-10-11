@@ -33,12 +33,16 @@ ohos_source_set("libpurgeablemem_sources") {
     "common/src/pm_state_c.c",
     "common/src/ux_page_table_c.c",
     "cpp/src/purgeable_ashmem.cpp",
+    "cpp/src/purgeable_dmabuf.cpp",
     "cpp/src/purgeable_mem.cpp",
     "cpp/src/purgeable_mem_base.cpp",
     "cpp/src/purgeable_mem_builder.cpp",
     "cpp/src/ux_page_table.cpp",
   ]
   include_dirs = [ "include" ]
+  deps = [
+    "//commonlibrary/memory_utils/libdmabufheap:libdmabufheap",
+  ]
   external_deps = [
     "bounds_checking_function:libsec_shared",
     "c_utils:utils",

@@ -50,7 +50,7 @@ PurgeableMem::PurgeableMem(size_t dataSize, std::unique_ptr<PurgeableMemBuilder>
     buildDataCount_ = 0;
 
     if (dataSize <= 0 || dataSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
-        PM_HILOG_DEBUG(LOG_CORE, "Failed to apply for memory");
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, dataSize);
         return;
     }
     dataSizeInput_ = dataSize;
@@ -83,7 +83,10 @@ PurgeableMem::~PurgeableMem()
 
 bool PurgeableMem::IsPurged()
 {
-    IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
+    if (!isSupport_) {
+        return false;
+    }
+    IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptr in IsPurged", return false);
     return !(pageTable_->CheckPresent((uint64_t)dataPtr_, dataSizeInput_));
 }
 
@@ -103,19 +106,26 @@ bool PurgeableMem::CreatePurgeableData()
         return false;
     }
     MAKE_UNIQUE(pageTable_, UxPageTable, "constructor uxpt make_unique fail", return false, (uint64_t)dataPtr_, size);
+    isSupport_ = true;
     return true;
 }
 
 bool PurgeableMem::Pin()
 {
-    IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
+    if (!isSupport_) {
+        return true;
+    }
+    IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptr in Pin", return false);
     pageTable_->GetUxpte((uint64_t)dataPtr_, dataSizeInput_);
     return true;
 }
 
 bool PurgeableMem::Unpin()
 {
-    IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptrin BeginWrite", return false);
+    if (!isSupport_) {
+        return true;
+    }
+    IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptr in Unpin", return false);
     pageTable_->PutUxpte((uint64_t)dataPtr_, dataSizeInput_);
     return true;
 }
@@ -126,13 +136,16 @@ void PurgeableMem::AfterRebuildSucc()
 
 int PurgeableMem::GetPinStatus() const
 {
+    if (!isSupport_) {
+        return -1;
+    }
     return 0;
 }
 
 void PurgeableMem::ResizeData(size_t newSize)
 {
     if (newSize <= 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
-        PM_HILOG_DEBUG(LOG_CORE, "Failed to apply for memory");
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, newSize);
         return;
     }
     if (dataPtr_) {
@@ -149,12 +162,10 @@ void PurgeableMem::ResizeData(size_t newSize)
     }
 }
 
-inline std::string PurgeableMem::ToString() const
+std::string PurgeableMem::ToString() const
 {
-    std::string dataptrStr = dataPtr_ ? std::to_string((unsigned long long)dataPtr_) : "0";
     std::string pageTableStr = pageTable_ ? pageTable_->ToString() : "0";
-    return "dataAddr:" + dataptrStr + " dataSizeInput:" + std::to_string(dataSizeInput_) +
-        " " + pageTableStr;
+    return PurgeableMemBase::ToString() + " " + pageTableStr;
 }
 } /* namespace PurgeableMem */
 } /* namespace OHOS */
