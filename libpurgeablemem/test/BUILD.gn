@@ -94,6 +94,21 @@ ohos_unittest("purgeableashmem_test") {
   part_name = "memory_utils"
 }
 
+ohos_unittest("purgeable_dmabuf_test") {
+  module_out_path = module_output_path
+  sources = [ "purgeable_dmabuf_test.cpp" ]
+  if (is_standard_system) {
+    deps = [
+      "//commonlibrary/memory_utils/libpurgeablemem:libpurgeablemem",
+      "//commonlibrary/memory_utils/libdmabufheap:libdmabufheap",
+    ]
+    external_deps = purgeable_external_deps
+  }
+
+  subsystem_name = "commonlibrary"
+  part_name = "memory_utils"
+}
+
 group("libpurgeablemem_test") {
   testonly = true
   deps = [
@@ -101,5 +116,6 @@ group("libpurgeablemem_test") {
     ":purgeable_cpp_test",
     ":purgeable_memory_test",
     ":purgeableashmem_test",
+    ":purgeable_dmabuf_test",
   ]
 }
