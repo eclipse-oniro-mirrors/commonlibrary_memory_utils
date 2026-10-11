@@ -26,6 +26,7 @@ config("libpurgeable_config") {
 
 ohos_source_set("libpurgeablemem_sources") {
   sources = [
+    "c/src/purgeable_dmabuf_bridge.cpp",
     "c/src/purgeable_mem_builder_c.c",
     "c/src/purgeable_mem_c.c",
     "c/src/purgeable_memory.c",
@@ -72,7 +73,7 @@ ohos_shared_library("libpurgeablemem"){
   ]
   subsystem_name = "commonlibrary"
   part_name = "memory_utils"
-  
+
   sanitize = {
     cfi = true
     cfi_cross_dso = true
@@ -83,7 +84,11 @@ ohos_shared_library("libpurgeablemem"){
 
 ohos_shared_library("purgeable_memory_ndk") {
   version_script = "libpurgeable_memory_ndk.map"
-  include_dirs = [ "interfaces/kits/c" ]
+  include_dirs = [
+    "interfaces/kits/c",
+    "c/include",
+    "common/include",
+  ]
 
   sources = [ "c/src/purgeable_memory.c" ]
   deps = [ ":libpurgeablemem" ]

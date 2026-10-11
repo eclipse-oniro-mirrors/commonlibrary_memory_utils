@@ -29,6 +29,14 @@
 
 namespace OHOS {
 namespace PurgeableMem {
+
+/* Purgeable memory backend type */
+enum PurgMemType {
+    PURG_MEM_TYPE_ANONYMOUS = 0,  /* User-space UX page table */
+    PURG_MEM_TYPE_ASHMEM = 1,     /* Kernel ashmem purgeable */
+    PURG_MEM_TYPE_DMA_BUF = 2,    /* Kernel dma-buf purgeable */
+};
+
 class PurgeableMemBase {
 public:
     /*
@@ -87,6 +95,14 @@ public:
     void EndWrite();
 
     /*
+     * DisablePurgeable: ensure the content is present (rebuild it if purged),
+     * then disable the purgeable feature of this object. After this call,
+     * Pin/Unpin become no-ops and the kernel will not reclaim the content
+     * anymore.
+     */
+    void DisablePurgeable();
+
+    /*
      * ModifyContentByBuilder: append a PurgeableMemBuilder obj to the PurgeableMem obj.
      * Input:   @modifier: unique_ptr of PurgeableMemBuilder, it will modify content of this obj.
      * Return:  modify result, true is success, while false is fail.
@@ -124,16 +140,25 @@ public:
     PurgeableMemBase& operator = (PurgeableMemBase&&) noexcept = delete;
     virtual int GetPinStatus() const;
     virtual bool Pin();
+    virtual PurgMemType GetPurgMemType() const;
+    virtual int GetFd() const;
+    virtual unsigned long GetIno() const;
 
 protected:
     void *dataPtr_ = nullptr;
     std::mutex dataLock_;
     bool isDataValid_ {true};
+    bool isSupport_ = false; /* whether the kernel purgeable feature is active */
     size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
     unsigned int buildDataCount_ = 0;
     bool BuildContent();
     bool IfNeedRebuild();
+    /*
+     * BeginReadUnlocked: the pin and rebuild body of BeginRead, the caller
+     * must hold dataLock_. The content stays pinned on success.
+     */
+    bool BeginReadUnlocked();
     virtual bool Unpin();
     virtual bool IsPurged();
     virtual void AfterRebuildSucc();

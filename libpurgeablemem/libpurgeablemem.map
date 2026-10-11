@@ -39,6 +39,8 @@
         PurgMemGetContent;
         PurgMemGetContentSize;
         PurgMemAppendModify;
+        PurgMemCreateDmaBuf;
+        PurgMemChangeDmaBufData;
         PurgMemBuilderCreate;
         PurgMemBuilderDestroy;
         PurgMemBuilderAppendFunc;

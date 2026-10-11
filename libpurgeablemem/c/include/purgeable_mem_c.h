@@ -122,6 +122,26 @@ size_t PurgMemGetContentSize(struct PurgMem *purgObj);
  */
 bool PurgMemAppendModify(struct PurgMem *purgObj, PurgMemModifyFunc func, void *funcPara);
 
+/*
+ * PurgMemCreateDmaBuf: create a DMA buffer PurgMem obj (empty shell, no mmap).
+ * Use PurgMemChangeDmaBufData() to attach an external DMA buffer.
+ * Input:   @func: function pointer, it recover data when the PurgMem obj's content is purged.
+ * Input:   @funcPara: parameters used by @func.
+ * Return:  a PurgMem obj of DMA buffer type, or NULL on failure.
+ */
+struct PurgMem *PurgMemCreateDmaBuf(PurgMemModifyFunc func, void *funcPara);
+
+/*
+ * PurgMemChangeDmaBufData: take over an existing DMA buffer.
+ * The DMA buffer is owned externally — PurgMem will not munmap/close it on destroy.
+ * Input:   @purgObj: a PurgMem obj created by PurgMemCreateDmaBuf().
+ * Input:   @size: data size of the DMA buffer.
+ * Input:   @fd: file descriptor of the DMA buffer (dma-buf fd).
+ * Input:   @data: mmaped data pointer of the DMA buffer.
+ * Return:  true on success, false on failure.
+ */
+bool PurgMemChangeDmaBufData(struct PurgMem *purgObj, size_t size, int fd, void *data);
+
 #ifdef __cplusplus
 #if __cplusplus
 }
