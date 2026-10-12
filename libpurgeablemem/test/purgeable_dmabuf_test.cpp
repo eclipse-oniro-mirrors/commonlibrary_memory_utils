@@ -371,18 +371,15 @@ static bool ReadVerifyDmabufContent(PurgeableDmaBuf *pobj, const char *expected,
 }
 
 /* VerifyNonDmabufFdTakeover: a non-dmabuf fd takeover succeeds, purgeable features degrade. */
+/* VerifyNonDmabufFdTakeover: a non-dmabuf fd takeover fails (marking fails). */
 static void VerifyNonDmabufFdTakeover(PurgeableDmaBuf *pobj, size_t size)
 {
     int plainFd = open("/dev/null", O_RDWR);
     ASSERT_GE(plainFd, 0);
     void *anonData = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     ASSERT_TRUE(anonData != MAP_FAILED);
-    EXPECT_TRUE(pobj->ChangeDmaBufData(ALPHABET_BUF_SIZE, plainFd, anonData));
-    EXPECT_EQ(pobj->GetDmaBufFd(), plainFd);
-    EXPECT_FALSE(pobj->isSupport_);
-    if (pobj->BeginRead()) {
-        pobj->EndRead();
-    }
+    EXPECT_FALSE(pobj->ChangeDmaBufData(ALPHABET_BUF_SIZE, plainFd, anonData))
+        << "non-dmabuf fd takeover must fail";
     munmap(anonData, size);
     close(plainFd);
 }
@@ -420,7 +417,7 @@ static void DisableWithoutPurgeCase()
     PurgeableDmaBuf pobj(std::move(builder));
     ASSERT_TRUE(pobj.CreatePurgeableData(ALPHABET_BUF_SIZE));
     EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
-    pobj.DisablePurgeable();
+    EXPECT_TRUE(pobj.DisablePurgeable());
     EXPECT_FALSE(pobj.isSupport_);
     /* the pin is held forever after disable, reclaim cannot purge the content */
     LoopReclaimPurgeableDma(1);
@@ -450,7 +447,7 @@ static void DisableAfterPurgeCase()
     EXPECT_EQ(pobj->IsPurged(), true);
     unsigned int buildCountBefore = pobj->buildDataCount_;
     /* DisablePurgeable rebuilds the purged content first, then disables the feature */
-    pobj->DisablePurgeable();
+    EXPECT_TRUE(pobj->DisablePurgeable());
     EXPECT_FALSE(pobj->isSupport_);
     EXPECT_EQ(pobj->buildDataCount_, buildCountBefore + 1);
     EXPECT_TRUE(ReadVerifyDmabufContent(pobj, alphabet, ALPHABET_CMP_LEN));
@@ -460,6 +457,57 @@ static void DisableAfterPurgeCase()
     EXPECT_TRUE(ReadVerifyDmabufContent(pobj, alphabet, ALPHABET_CMP_LEN));
     EXPECT_EQ(pobj->buildDataCount_, buildCountAfterDisable);
     delete pobj;
+}
+
+/*
+ * DisableThenResizeCase: after DisablePurgeable, ResizeData must be rejected
+ * (the object is permanently disabled, cannot get a new purgeable buffer).
+ */
+static void DisableThenResizeCase()
+{
+    const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobj(std::move(builder));
+    ASSERT_TRUE(pobj.CreatePurgeableData(ALPHABET_BUF_SIZE));
+    EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
+    EXPECT_TRUE(pobj.DisablePurgeable());
+    EXPECT_FALSE(pobj.isSupport_);
+    EXPECT_TRUE(pobj.disabled_);
+
+    /* resize must be rejected: disabled objects cannot get a new buffer */
+    size_t sizeBefore = pobj.GetContentSize();
+    pobj.ResizeData(PAGE_CROSS_SIZE);
+    EXPECT_EQ(pobj.GetContentSize(), sizeBefore) << "resize must be rejected when disabled";
+    /* original content still intact */
+    EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
+}
+
+/*
+ * DisableThenChangeCase: after DisablePurgeable, ChangeDmaBufData must be
+ * rejected (the object is permanently disabled).
+ */
+static void DisableThenChangeCase()
+{
+    const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobj(std::move(builder));
+    ASSERT_TRUE(pobj.CreatePurgeableData(ALPHABET_BUF_SIZE));
+    EXPECT_TRUE(pobj.DisablePurgeable());
+    EXPECT_TRUE(pobj.disabled_);
+
+    /* change must be rejected */
+    size_t size = PAGE_SIZE;
+    void *data = nullptr;
+    int heapFd = -1;
+    DmabufHeapBuffer buffer = {};
+    ASSERT_TRUE(AllocDmabuf(size, &data, &heapFd, &buffer));
+    int fd = static_cast<int>(buffer.fd);
+    EXPECT_FALSE(pobj.ChangeDmaBufData(ALPHABET_BUF_SIZE, fd, data)) << "change must fail when disabled";
+    /* object state unchanged */
+    EXPECT_NE(pobj.GetDmaBufFd(), fd);
+    /* original content still intact */
+    EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
+    FreeDmaBuf(data, size, heapFd, &buffer);
 }
 
 HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest, TestSize.Level1)
@@ -767,6 +815,10 @@ HWTEST_F(PurgeableDmaBufTest, DisablePurgeableTest, TestSize.Level1)
     DisableWithoutPurgeCase();
     /* case 2: disable after purge, the purged content is rebuilt during disable */
     DisableAfterPurgeCase();
+    /* case 3: disable then resize, the new buffer must NOT be purgeable */
+    DisableThenResizeCase();
+    /* case 4: disable then change to another buffer, the new buffer must NOT be purgeable */
+    DisableThenChangeCase();
 }
 
 HWTEST_F(PurgeableDmaBufTest, WriteTest, TestSize.Level1)
@@ -1053,6 +1105,81 @@ HWTEST_F(PurgeableDmaBufTest, ChangeDmaBufDataTwiceTest, TestSize.Level1)
     FreeDmaBuf(data2, size, heapFd2, &buffer2);
 }
 
+/*
+ * ChangeToNonPurgeableTest: switching from a purgeable-capable buffer to a
+ * non-dma-buf fd must fail (marking fails), the object stays unchanged.
+ */
+HWTEST_F(PurgeableDmaBufTest, ChangeToNonPurgeableTest, TestSize.Level1)
+{
+    if (SkipDmabufTest()) {
+        return;
+    }
+    const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobj(std::move(builder));
+    ASSERT_TRUE(pobj.CreatePurgeableData(ALPHABET_BUF_SIZE));
+    int originalFd = pobj.GetDmaBufFd();
+    EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
+
+    /* take over a non-dma-buf fd: marking must fail, object unchanged */
+    size_t size = PAGE_SIZE;
+    int plainFd = open("/dev/null", O_RDWR);
+    ASSERT_GE(plainFd, 0);
+    void *anonData = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    ASSERT_TRUE(anonData != MAP_FAILED);
+    EXPECT_FALSE(pobj.ChangeDmaBufData(ALPHABET_BUF_SIZE, plainFd, anonData))
+        << "change to non-purgeable fd must fail";
+    /* object state unchanged: still has the original buffer */
+    EXPECT_EQ(pobj.GetDmaBufFd(), originalFd);
+    EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
+    munmap(anonData, size);
+    close(plainFd);
+}
+
+/*
+ * PinReturnOneTest: PIN returns 1 (WAS_PURGED) when the buffer was purged,
+ * BeginRead must succeed and rebuild the content (not treat it as failure).
+ */
+HWTEST_F(PurgeableDmaBufTest, PinReturnOneTest, TestSize.Level1)
+{
+    if (SkipDmabufTest()) {
+        return;
+    }
+    const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf *pobj = new (std::nothrow) PurgeableDmaBuf(std::move(builder));
+    ASSERT_NE(pobj, nullptr);
+    ASSERT_TRUE(pobj->CreatePurgeableData(ALPHABET_BUF_SIZE));
+    if (!pobj->isSupport_) {
+        std::cout << __func__ << ": kernel not support purgeable, skip" << std::endl;
+        delete pobj;
+        return;
+    }
+    /* first access builds the content */
+    ASSERT_TRUE(ReadVerifyDmabufContent(pobj, alphabet, ALPHABET_CMP_LEN));
+    /* EndRead unpinned the buffer, kernel purges it on reclaim */
+    if (!ReclaimPurgeableDma()) {
+        std::cout << __func__ << ": trigger not available, skip" << std::endl;
+        delete pobj;
+        return;
+    }
+    std::this_thread::sleep_for(std::chrono::seconds(RECLAIM_INTERVAL_SECONDS));
+    EXPECT_EQ(pobj->IsPurged(), true);
+
+    /* raw ioctl: PIN must return 1 (WAS_PURGED), not an error */
+    struct DmaBufPurgeablePin pin = { 0, 0 };
+    int ret = ioctl(pobj->GetDmaBufFd(), DMA_BUF_PURGEABLE_PIN, &pin);
+    EXPECT_EQ(ret, DMA_BUF_PURGEABLE_WAS_PURGED);
+    /* undo the raw pin to restore the state for the object-level test */
+    ioctl(pobj->GetDmaBufFd(), DMA_BUF_PURGEABLE_UNPIN, &pin);
+
+    /* object-level BeginRead must succeed and rebuild (not fail on ret==1) */
+    EXPECT_TRUE(ReadVerifyDmabufContent(pobj, alphabet, ALPHABET_CMP_LEN));
+    EXPECT_FALSE(pobj->IsPurged());
+    delete pobj;
+    pobj = nullptr;
+}
+
 HWTEST_F(PurgeableDmaBufTest, DestructorKeepExternalResourceTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
@@ -1098,10 +1225,11 @@ HWTEST_F(PurgeableDmaBufTest, IsPurgedTest, TestSize.Level1)
     /* GetPinStatus returns -1 when the purgeable feature is not active */
     EXPECT_EQ(pobj.GetPinStatus(), -1);
     pobj.isSupport_ = true;
-    /* fd <= 0: Pin/Unpin should fail */
+    /* fd 0: enters the ioctl branch (>= 0), Pin/Unpin succeed */
     pobj.dmaBufFd_ = 0;
-    EXPECT_EQ(pobj.Pin(), false);
-    EXPECT_EQ(pobj.Unpin(), false);
+    EXPECT_EQ(pobj.Pin(), true);
+    EXPECT_EQ(pobj.Unpin(), true);
+    /* fd -1: rejected by the >= 0 guard */
     pobj.dmaBufFd_ = -1;
     EXPECT_EQ(pobj.Pin(), false);
     EXPECT_EQ(pobj.Unpin(), false);

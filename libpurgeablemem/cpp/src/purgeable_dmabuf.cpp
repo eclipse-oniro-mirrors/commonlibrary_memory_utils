@@ -163,7 +163,7 @@ bool PurgeableDmaBuf::Pin()
     if (!isSupport_) {
         return true;
     }
-    if (dmaBufFd_ > 0) {
+    if (dmaBufFd_ >= 0) {
         TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_PIN, &pin_));
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "dmaBufFd_ not exist!!");
@@ -177,7 +177,7 @@ bool PurgeableDmaBuf::Unpin()
     if (!isSupport_) {
         return true;
     }
-    if (dmaBufFd_ > 0) {
+    if (dmaBufFd_ >= 0) {
         TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_UNPIN, &pin_));
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "dmaBufFd_ not exist!!");
@@ -235,6 +235,12 @@ bool PurgeableDmaBuf::CreatePurgeableData(size_t size, const char *heapName)
         return false;
     }
 
+    /* reject if permanently disabled */
+    if (disabled_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return false;
+    }
+
     /* release the previous self-allocated buffer, if any */
     ReleaseSelfAllocatedBuffer();
 
@@ -248,21 +254,24 @@ bool PurgeableDmaBuf::CreatePurgeableData(size_t size, const char *heapName)
         return false;
     }
 
+    /* mark as purgeable; release the buffer if the kernel does not support it */
+    isSupport_ = MarkDmaBufPurgeable(static_cast<int>(buffer.fd));
+    if (!isSupport_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release buffer", __func__);
+        DmabufHeapBufferFree(&buffer);
+        munmap(data, size);
+        return false;
+    }
+
     dataSizeInput_ = size;
-    dmaBufFd_ = buffer.fd;
+    dmaBufFd_ = static_cast<int>(buffer.fd);
     pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
     dataPtr_ = data;
     isChange_ = false;
     /* new empty buffer, the first access rebuilds it by builder */
     buildDataCount_ = 0;
-
-    /* Mark DMA buffer as purgeable. Kernel default pin count is 1 after SET_PURGEABLE.
-     * Calls Unpin() so the empty buffer can be reclaimed by the kernel
-     * until the first BeginRead/BeginWrite triggers BuildContent via builder. */
-    if (MarkDmaBufPurgeable(dmaBufFd_)) {
-        isSupport_ = true;
-        Unpin();
-    }
+    /* empty buffer: unpin so the kernel can reclaim it until first access */
+    Unpin();
     /* Cache ino once — stable for the lifetime of the dma-buf fd */
     ino_ = QueryDmaBufIno(dmaBufFd_);
     return true;
@@ -282,30 +291,34 @@ bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: data is nullptr", __func__);
         return false;
     }
+    /* reject if permanently disabled */
+    if (disabled_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return false;
+    }
 
-    /* release the previous self-allocated buffer, if any */
+    /*
+     * Probe the new fd before committing: mark it as purgeable first,
+     * so a failure leaves the object and the caller's buffer untouched.
+     */
+    if (!MarkDmaBufPurgeable(fd)) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, fd:%{public}d", __func__, fd);
+        return false;
+    }
+
+    /* commit: release the previous self-allocated buffer, then take over */
     ReleaseSelfAllocatedBuffer();
-
     dataSizeInput_ = size;
     dmaBufFd_ = fd;
     dataPtr_ = data;
     buildDataCount_++;
     isChange_ = true;
-
-    /*
-     * Mark DMA buffer as purgeable. Kernel default pin count is 1 after
-     * SET_PURGEABLE. Increments buildDataCount_ — assumes data is already
-     * present in the buffer. Does NOT call Unpin — buffer already has data,
-     * keep it pinned.
-     */
-    if (MarkDmaBufPurgeable(dmaBufFd_)) {
-        isSupport_ = true;
-    }
+    isSupport_ = true;
     /* Cache ino once — stable for the lifetime of the dma-buf fd */
     ino_ = QueryDmaBufIno(dmaBufFd_);
 
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s: succ, fd:%{public}d ino:%{public}lu size:%{public}zu isSupport:%{public}d",
-                   __func__, dmaBufFd_, ino_, dataSizeInput_, isSupport_);
+    PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, fd:%{public}d ino:%{public}lu size:%{public}zu",
+                  __func__, dmaBufFd_, ino_, dataSizeInput_);
     return true;
 }
 
@@ -318,6 +331,11 @@ void PurgeableDmaBuf::ResizeData(size_t newSize)
     if (isChange_) {
         /* the taken-over DMA buffer is owned by caller, cannot resize it */
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: external buffer cannot be resized", __func__);
+        return;
+    }
+    if (disabled_) {
+        /* disabled objects cannot get a new purgeable buffer */
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return;
     }
     if (dataPtr_) {
