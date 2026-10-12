@@ -133,18 +133,31 @@ void PurgeableMemBase::EndRead()
 
 /*
  * DisablePurgeable: ensure the content is present (rebuild it if purged),
- * then disable the purgeable feature. The content stays pinned after a
- * successful BeginReadUnlocked, and the pin is never released once
- * isSupport_ is off, so the kernel will not reclaim the content anymore.
+ * then permanently disable the purgeable feature of this object.
+ *
+ * Two flags are set atomically under dataLock_:
+ *   disabled_ = true  — one-way write guard: CreatePurgeableData/ChangeData
+ *                       will skip the purgeable marking for any future buffer
+ *                       (resize/change), so isSupport_ can never become true again.
+ *   isSupport_ = false — operation guard: Pin/Unpin/IsPurged become no-ops,
+ *                       so the pin taken by BeginReadUnlocked above is never
+ *                       released — the kernel will not reclaim the content.
  */
-void PurgeableMemBase::DisablePurgeable()
+bool PurgeableMemBase::DisablePurgeable()
 {
     std::lock_guard<std::mutex> lock(dataLock_);
+    if (disabled_) {
+        /* already disabled, idempotent */
+        return true;
+    }
     if (!BeginReadUnlocked()) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: rebuild content fail, keep purgeable", __func__);
-        return;
+        return false;
     }
+    disabled_ = true;
     isSupport_ = false;
+    PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, %{public}s", __func__, ToString().c_str());
+    return true;
 }
 
 bool PurgeableMemBase::BeginWrite()

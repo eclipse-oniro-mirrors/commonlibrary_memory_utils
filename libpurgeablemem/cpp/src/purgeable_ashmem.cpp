@@ -109,10 +109,40 @@ bool PurgeableAshMem::IsPurged()
     return ret > 0 ? true : false;
 }
 
+/*
+ * AllocAndMapAshmem: create an ashmem region of @size and mmap it.
+ * The region is released on failure.
+ */
+static bool AllocAndMapAshmem(size_t size, int *fd, void **data)
+{
+    *fd = AshmemCreate("PurgeableAshmem", size);
+    if (*fd < 0) {
+        return false;
+    }
+    if (AshmemSetProt(*fd, PROT_READ | PROT_WRITE) < 0) {
+        close(*fd);
+        *fd = -1;
+        return false;
+    }
+    *data = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, *fd, 0);
+    if (*data == MAP_FAILED) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mmap fail", __func__);
+        close(*fd);
+        *fd = -1;
+        return false;
+    }
+    return true;
+}
+
 bool PurgeableAshMem::CreatePurgeableData()
 {
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     if (dataSizeInput_ == 0) {
+        return false;
+    }
+    /* reject if permanently disabled */
+    if (disabled_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return false;
     }
     /* release the previous self-allocated ashmem region, if any */
@@ -127,31 +157,27 @@ bool PurgeableAshMem::CreatePurgeableData()
         }
     }
     size_t size = RoundUp(dataSizeInput_, PAGE_SIZE);
-    int fd = AshmemCreate("PurgeableAshmem", size);
-    if (fd < 0) {
+    void *data = nullptr;
+    if (!AllocAndMapAshmem(size, &ashmemFd_, &data)) {
         return false;
     }
-    if (AshmemSetProt(fd, PROT_READ | PROT_WRITE) < 0) {
-        close(fd);
-        return false;
-    }
-    ashmemFd_ = fd;
+    dataPtr_ = data;
     pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
-    dataPtr_ = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, ashmemFd_, 0);
-    if (dataPtr_ == MAP_FAILED) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mmap fail", __func__);
-        dataPtr_ = nullptr;
-        close(ashmemFd_);
-        return false;
-    }
     isChange_ = false;
     /* new empty region, the first access rebuilds it by builder */
     buildDataCount_ = 0;
+    /* mark as purgeable; release the region if the kernel does not support it */
     TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_SET_PURGEABLE));
-    if (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1) {
-        isSupport_ = true;
-        Unpin();
+    isSupport_ = (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1);
+    if (!isSupport_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release region", __func__);
+        munmap(dataPtr_, size);
+        dataPtr_ = nullptr;
+        close(ashmemFd_);
+        ashmemFd_ = -1;
+        return false;
     }
+    Unpin();
     return true;
 }
 
@@ -207,6 +233,11 @@ void PurgeableAshMem::ResizeData(size_t newSize)
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: external buffer cannot be resized", __func__);
         return;
     }
+    if (disabled_) {
+        /* disabled objects cannot get a new purgeable buffer */
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return;
+    }
     if (dataPtr_) {
         if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
@@ -229,7 +260,28 @@ bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
         return false;
     }
-    /* release the previous self-allocated ashmem region, if any */
+    if (fd < 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid fd", __func__);
+        return false;
+    }
+    if (data == nullptr) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: data is nullptr", __func__);
+        return false;
+    }
+    /* reject if permanently disabled */
+    if (disabled_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return false;
+    }
+
+    /* probe the new fd before committing: mark it as purgeable first */
+    TEMP_FAILURE_RETRY(ioctl(fd, ASHMEM_SET_PURGEABLE));
+    if (TEMP_FAILURE_RETRY(ioctl(fd, ASHMEM_GET_PURGEABLE)) != 1) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, fd:%{public}d", __func__, fd);
+        return false;
+    }
+
+    /* commit: release the previous self-allocated region, then take over */
     if (!isChange_ && dataPtr_) {
         if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
             PM_HILOG_ERROR(LOG_CORE, "%{public}s: munmap dataPtr fail", __func__);
@@ -245,10 +297,7 @@ bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
     dataPtr_ = data;
     buildDataCount_++;
     isChange_ = true;
-    TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_SET_PURGEABLE));
-    if (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1) {
-        isSupport_ = true;
-    }
+    isSupport_ = true;
     return true;
 }
 

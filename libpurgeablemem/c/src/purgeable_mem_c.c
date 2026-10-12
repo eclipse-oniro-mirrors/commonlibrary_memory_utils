@@ -484,6 +484,7 @@ static void EndAccessPurgMem(struct PurgMem *purgObj)
     }
     if (purgObj->type == PURG_MEM_TYPE_DMA_BUF) {
         PurgMemDmaBufUnpinInternal(purgObj);
+        pthread_rwlock_unlock(&(purgObj->rwlock));
         return;
     }
     int rwlockRet = 0;
@@ -576,16 +577,22 @@ static bool PurgMemDmaBufPinInternal(struct PurgMem *purgObj)
     if (!purgObj->isSupport) {
         return true;
     }
-    if (purgObj->dmaBufFd > 0) {
+    if (purgObj->dmaBufFd >= 0) {
         struct DmaBufPurgeablePin pin = {0, 0};
         int ret = PurgDmaBufPin(purgObj->dmaBufFd, &pin);
-        if (ret != 0) {
+        if (ret < 0) {
             PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: Pin fail, fd:%{public}d ret:%{public}d",
                 __func__, purgObj->dmaBufFd, ret);
             return false;
         }
-        PM_HILOG_INFO_C(LOG_CORE, "%{public}s: Pin succ, fd:%{public}d pinStatus:%{public}d",
-            __func__, purgObj->dmaBufFd, PurgDmaBufGetPinStatus(purgObj->dmaBufFd));
+        if (ret > 0) {
+            /* the buffer was purged before this pin, needs rebuild */
+            PM_HILOG_INFO_C(LOG_CORE, "%{public}s: Pin succ (was purged), fd:%{public}d",
+                __func__, purgObj->dmaBufFd);
+        } else {
+            PM_HILOG_INFO_C(LOG_CORE, "%{public}s: Pin succ, fd:%{public}d pinStatus:%{public}d",
+                __func__, purgObj->dmaBufFd, PurgDmaBufGetPinStatus(purgObj->dmaBufFd));
+        }
     }
     return true;
 }
@@ -601,10 +608,10 @@ static bool PurgMemDmaBufUnpinInternal(struct PurgMem *purgObj)
     if (!purgObj->isSupport) {
         return true;
     }
-    if (purgObj->dmaBufFd > 0) {
+    if (purgObj->dmaBufFd >= 0) {
         struct DmaBufPurgeablePin pin = {0, 0};
         int ret = PurgDmaBufUnpin(purgObj->dmaBufFd, &pin);
-        if (ret != 0) {
+        if (ret < 0) {
             PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: Unpin fail, fd:%{public}d ret:%{public}d",
                 __func__, purgObj->dmaBufFd, ret);
             return false;
@@ -636,10 +643,11 @@ static bool RebuildDmaBufIfPurged(struct PurgMem *purgObj)
 
 /*
  * PurgMemBeginAccessDmaBuf: dma-buf path of PurgMemBeginRead/PurgMemBeginWrite.
- * Symmetric lock protocol with the anonymous-memory path: holds rwlock while
- * touching purgObj->buildDataCount and invoking builder->BuildAll, so that
- * concurrent BeginRead/BeginWrite on the same object are serialized.
- * Returns true on success (caller may access dataPtr), false on failure.
+ * Holds the rwlock through the entire access section (until the paired
+ * PurgMemEndRead/PurgMemEndWrite), so that concurrent access on the same
+ * object is serialized, matching the anonymous-memory path.
+ * Returns true on success (caller may access dataPtr, lock held), false on
+ * failure (lock released).
  */
 static bool PurgMemBeginAccessDmaBuf(struct PurgMem *purgObj)
 {
@@ -649,23 +657,21 @@ static bool PurgMemBeginAccessDmaBuf(struct PurgMem *purgObj)
         return false;
     }
 
-    bool succ = false;
-    do {
-        if (!PurgMemDmaBufPinInternal(purgObj)) {
-            PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: Pin fail", __func__);
-            break;
-        }
-        if (!RebuildDmaBufIfPurged(purgObj)) {
-            break;
-        }
-        succ = true;
-    } while (0);
+    if (!PurgMemDmaBufPinInternal(purgObj)) {
+        PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: Pin fail", __func__);
+        goto unlock_fail;
+    }
+    if (!RebuildDmaBufIfPurged(purgObj)) {
+        goto unlock_fail;
+    }
+    return true; /* lock held through the access section */
 
+unlock_fail:
     rwlockRet = pthread_rwlock_unlock(&(purgObj->rwlock));
     if (rwlockRet != 0) {
         PM_HILOG_ERROR_C(LOG_CORE, "%{public}s: unlock fail. %{public}d", __func__, rwlockRet);
     }
-    return succ;
+    return false;
 }
 
 /*
@@ -751,9 +757,7 @@ bool PurgMemChangeDmaBufData(struct PurgMem *purgObj, size_t size, int fd, void 
      * Does NOT call Unpin — buffer already has data, keep it pinned.
      * Same as PurgeableDmaBuf::ChangeDmaBufData. */
     PurgDmaBufSetPurgeable(purgObj->dmaBufFd);
-    if (PurgDmaBufGetPurgeable(purgObj->dmaBufFd) == PURGEABLE_DMA_BUF_PURGEABLE) {
-        purgObj->isSupport = true;
-    }
+    purgObj->isSupport = (PurgDmaBufGetPurgeable(purgObj->dmaBufFd) == PURGEABLE_DMA_BUF_PURGEABLE);
 
     PM_HILOG_INFO_C(LOG_CORE, "%{public}s: succ, fd:%{public}d size:%{public}zu isSupport:%{public}d",
         __func__, purgObj->dmaBufFd, purgObj->dataSizeInput, purgObj->isSupport);

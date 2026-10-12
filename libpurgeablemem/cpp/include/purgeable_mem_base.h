@@ -96,11 +96,11 @@ public:
 
     /*
      * DisablePurgeable: ensure the content is present (rebuild it if purged),
-     * then disable the purgeable feature of this object. After this call,
-     * Pin/Unpin become no-ops and the kernel will not reclaim the content
-     * anymore.
+     * then permanently disable the purgeable feature of this object.
+     * Return:  true if disabled successfully; false if the content rebuild
+     *          failed, in which case the object is still purgeable.
      */
-    void DisablePurgeable();
+    bool DisablePurgeable();
 
     /*
      * ModifyContentByBuilder: append a PurgeableMemBuilder obj to the PurgeableMem obj.
@@ -148,7 +148,20 @@ protected:
     void *dataPtr_ = nullptr;
     std::mutex dataLock_;
     bool isDataValid_ {true};
-    bool isSupport_ = false; /* whether the kernel purgeable feature is active */
+    /*
+     * isSupport_: operation guard — when false, all purgeable operations
+     * (Pin/Unpin/IsPurged/GetPinStatus) become no-ops on this object.
+     * Written by the kernel probe in CreatePurgeableData/ChangeData
+     * (only when !disabled_), and forced to false by DisablePurgeable().
+     */
+    bool isSupport_ = false;
+    /*
+     * disabled_: write guard for isSupport_ — when true, CreatePurgeableData/
+     * ChangeData skip the purgeable marking entirely, so isSupport_ stays
+     * false and can never be set back to true. One-way: set only by
+     * DisablePurgeable(), no restore path.
+     */
+    bool disabled_ = false;
     size_t dataSizeInput_ = 0;
     std::unique_ptr<PurgeableMemBuilder> builder_ = nullptr;
     unsigned int buildDataCount_ = 0;
