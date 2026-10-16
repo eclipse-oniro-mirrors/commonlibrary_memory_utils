@@ -189,27 +189,27 @@ HWTEST_F(PurgeableAshmemTest, KernelInterfaceTest, TestSize.Level1)
     EXPECT_EQ(ioctl(fd, ASHMEM_SET_PURGEABLE), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PURGEABLE), 1);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 1);
-    ioctl(fd, ASHMEM_PIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_PIN, &pin_), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 2);
-    ioctl(fd, ASHMEM_PIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_PIN, &pin_), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 3);
-    ioctl(fd, ASHMEM_UNPIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_UNPIN, &pin_), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 2);
-    ioctl(fd, ASHMEM_UNPIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_UNPIN, &pin_), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 1);
     EXPECT_EQ(ioctl(fd, ASHMEM_PURGE_ALL_CACHES), 0);
     EXPECT_EQ(ioctl(fd, PURGEABLE_ASHMEM_IS_PURGED), 0);
-    ioctl(fd, ASHMEM_UNPIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_UNPIN, &pin_), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 0);
     EXPECT_EQ(ioctl(fd, PURGEABLE_ASHMEM_IS_PURGED), 0);
     ioctl(fd, ASHMEM_PURGE_ALL_CACHES);
     EXPECT_EQ(ioctl(fd, PURGEABLE_ASHMEM_IS_PURGED), 1);
-    ioctl(fd, ASHMEM_PIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_PIN, &pin_), 1);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 1);
     EXPECT_EQ(ioctl(fd, PURGEABLE_ASHMEM_IS_PURGED), 1);
-    ioctl(fd, ASHMEM_UNPIN, &pin_);
+    EXPECT_EQ(ioctl(fd, ASHMEM_UNPIN, &pin_), 0);
     EXPECT_EQ(ioctl(fd, ASHMEM_GET_PIN_STATUS, &pin_), 0);
-    ioctl(fd, PURGEABLE_ASHMEM_REBUILD_SUCCESS);
+    EXPECT_EQ(ioctl(fd, PURGEABLE_ASHMEM_REBUILD_SUCCESS), 0);
     EXPECT_EQ(ioctl(fd, PURGEABLE_ASHMEM_IS_PURGED), 0);
 }
 

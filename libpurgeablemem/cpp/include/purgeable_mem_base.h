@@ -63,8 +63,9 @@ public:
      * EndRead: end read the PurgeableMem obj.
      * OS may reclaim the memory of its content
      * at a later time when this function returns.
+     * Return:  true if the pin is released successfully, false on Unpin failure.
      */
-    void EndRead();
+    bool EndRead();
 
     /*
      * BeginRead: begin write the PurgeableMem obj.
@@ -91,8 +92,9 @@ public:
      * EndWrite: end write the PurgeableMem obj.
      * OS may reclaim the memory of its content
      * at a later time when this function returns.
+     * Return:  true if the pin is released successfully, false on Unpin failure.
      */
-    void EndWrite();
+    bool EndWrite();
 
     /*
      * DisablePurgeable: ensure the content is present (rebuild it if purged),
