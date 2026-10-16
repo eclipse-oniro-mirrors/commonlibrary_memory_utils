@@ -87,7 +87,11 @@ bool PurgeableMemBase::BeginReadUnlocked()
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginRead", return false);
     std::string beginReadTraceName = "PurgeableMem::BeginRead(size=" + std::to_string(dataSizeInput_) + ")";
     PMStartTrace(beginReadTraceName);
-    Pin();
+    if (!Pin()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail", __func__);
+        PMFinishTrace();
+        return false;
+    }
     PMState err = PM_OK;
     int tryTimes = 0;
     while (IfNeedRebuild()) {
@@ -119,16 +123,20 @@ bool PurgeableMemBase::BeginReadUnlocked()
     return ret;
 }
 
-void PurgeableMemBase::EndRead()
+bool PurgeableMemBase::EndRead()
 {
     std::lock_guard<std::mutex> lock(dataLock_);
     if (isDataValid_) {
         PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
             __func__, GetPinStatus(), ToString().c_str());
-        Unpin();
     }
-
-    return;
+    /* always unpin: the pin was taken by BeginRead, it must be released
+     * even if isDataValid_ became false in between, otherwise the pin leaks */
+    if (!Unpin()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail", __func__);
+        return false;
+    }
+    return true;
 }
 
 /*
@@ -171,7 +179,10 @@ bool PurgeableMemBase::BeginWrite()
     IF_NULL_LOG_ACTION(dataPtr_, "dataPtr is nullptr in BeginWrite", return false);
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginWrite", return false);
 
-    Pin();
+    if (!Pin()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail", __func__);
+        return false;
+    }
     PMState err = PM_OK;
     do {
         if (!IfNeedRebuild()) {
@@ -201,12 +212,16 @@ bool PurgeableMemBase::BeginWrite()
     return false;
 }
 
-void PurgeableMemBase::EndWrite()
+bool PurgeableMemBase::EndWrite()
 {
     std::lock_guard<std::mutex> lock(dataLock_);
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
         __func__, GetPinStatus(), ToString().c_str());
-    Unpin();
+    if (!Unpin()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail", __func__);
+        return false;
+    }
+    return true;
 }
 
 bool PurgeableMemBase::ModifyContentByBuilder(std::unique_ptr<PurgeableMemBuilder> modifier)

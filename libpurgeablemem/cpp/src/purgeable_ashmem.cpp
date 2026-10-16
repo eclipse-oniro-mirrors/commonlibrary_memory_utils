@@ -181,13 +181,25 @@ bool PurgeableAshMem::CreatePurgeableData()
     return true;
 }
 
+/*
+ * PIN ioctl return values: <0 = failure, >=0 = success. The rebuild
+ * decision is made separately by IsPurged() via PURGEABLE_ASHMEM_IS_PURGED.
+ * On failure the object is disabled as a safety fallback.
+ */
 bool PurgeableAshMem::Pin()
 {
     if (!isSupport_) {
         return true;
     }
     if (ashmemFd_ > 0) {
-        TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_PIN, &pin_));
+        int ret = TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_PIN, &pin_));
+        if (ret < 0) {
+            PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail, fd:%{public}d ret:%{public}d",
+                __func__, ashmemFd_, ret);
+            disabled_ = true;
+            isSupport_ = false;
+            return false;
+        }
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "ashmemFd_ not exist!!");
         return false;
@@ -195,13 +207,44 @@ bool PurgeableAshMem::Pin()
     return true;
 }
 
+/*
+ * UNPIN ioctl return values: <0 = failure, 0 = success, >0 = pin count
+ * underflow (the caller violated the pin/unpin pairing constraint).
+ * Any failure disables the object as a safety fallback. On underflow,
+ * the content is at pin count 0 and may have been purged — pin once
+ * more and rebuild if needed to protect the content before disabling.
+ */
 bool PurgeableAshMem::Unpin()
 {
     if (!isSupport_) {
         return true;
     }
     if (ashmemFd_ > 0) {
-        TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_UNPIN, &pin_));
+        int ret = TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_UNPIN, &pin_));
+        if (ret < 0) {
+            PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail, fd:%{public}d ret:%{public}d",
+                __func__, ashmemFd_, ret);
+            disabled_ = true;
+            isSupport_ = false;
+            return false;
+        }
+        if (ret > 0) {
+            /*
+             * Underflow: pin count was 0, content may have been purged.
+             * Pin and rebuild to protect the content before disabling.
+             * This mirrors DisablePurgeable's internal BeginReadUnlocked
+             * logic, but skips its failure-path Unpin — the pin is
+             * intentionally kept because the object is being disabled.
+             */
+            PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin underflow, fd:%{public}d",
+                __func__, ashmemFd_);
+            if (Pin() && IfNeedRebuild()) {
+                BuildContent();
+            }
+            disabled_ = true;
+            isSupport_ = false;
+            return false;
+        }
     } else {
         PM_HILOG_DEBUG(LOG_CORE, "ashmemFd_ not exist!!");
         return false;

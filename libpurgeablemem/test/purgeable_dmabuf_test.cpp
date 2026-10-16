@@ -1225,11 +1225,24 @@ HWTEST_F(PurgeableDmaBufTest, IsPurgedTest, TestSize.Level1)
     /* GetPinStatus returns -1 when the purgeable feature is not active */
     EXPECT_EQ(pobj.GetPinStatus(), -1);
     pobj.isSupport_ = true;
-    /* fd 0: enters the ioctl branch (>= 0), Pin/Unpin succeed */
+    /* fd 0 (stdin): enters the ioctl branch (>= 0) but the ioctl fails on
+     * a non-dma-buf fd, Pin/Unpin return false and disable the object */
     pobj.dmaBufFd_ = 0;
-    EXPECT_EQ(pobj.Pin(), true);
-    EXPECT_EQ(pobj.Unpin(), true);
-    /* fd -1: rejected by the >= 0 guard */
+    EXPECT_EQ(pobj.Pin(), false);
+    /* Pin failure disables the object as safety fallback */
+    EXPECT_FALSE(pobj.isSupport_);
+    EXPECT_TRUE(pobj.disabled_);
+    /* restore for the Unpin test on the same fd */
+    pobj.isSupport_ = true;
+    pobj.disabled_ = false;
+    EXPECT_EQ(pobj.Unpin(), false);
+    /* Unpin failure also disables the object */
+    EXPECT_FALSE(pobj.isSupport_);
+    EXPECT_TRUE(pobj.disabled_);
+    /* restore for the fd -1 test */
+    pobj.isSupport_ = true;
+    pobj.disabled_ = false;
+    /* fd -1: rejected by the >= 0 guard (no disable side effect) */
     pobj.dmaBufFd_ = -1;
     EXPECT_EQ(pobj.Pin(), false);
     EXPECT_EQ(pobj.Unpin(), false);
