@@ -159,29 +159,33 @@ int PurgeableDmaBuf::GetDmaBufFd() const
 }
 
 /*
- * PIN ioctl return values: <0 = failure, 0 = success (not purged, no rebuild
- * needed), 1 = success (was purged, rebuild needed). The value 1 does NOT
- * cause Pin() to fail — the rebuild decision is made separately by
- * IsPurged() via DMA_BUF_PURGEABLE_IS_PURGED ioctl.
- * On failure the object is disabled as a safety fallback.
+ * Pin: protect the content from being reclaimed by the kernel.
+ * Return:  true if the content is protected — either the kernel reference
+ *          count was incremented, or the buffer is not purgeable and thus
+ *          inherently protected from reclamation;
+ *          false if there is no valid buffer (fd guard).
+ * Note: on ioctl failure the object is disabled as a safety fallback,
+ * and Pin still returns true — the buffer just lost its purgeable status,
+ * so the content is inherently protected from now on.
+ * PIN ioctl return values: <0 = failure (disable fallback), 0 = success
+ * (not purged), 1 = success (was purged, rebuild needed — handled by
+ * IsPurged(), not by Pin's return value).
  */
 bool PurgeableDmaBuf::Pin()
 {
+    if (dmaBufFd_ < 0) {
+        PM_HILOG_DEBUG(LOG_CORE, "dmaBufFd_ not exist!!");
+        return false;
+    }
     if (!isSupport_) {
         return true;
     }
-    if (dmaBufFd_ >= 0) {
-        int ret = TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_PIN, &pin_));
-        if (ret < 0) {
-            PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail, fd:%{public}d ret:%{public}d",
-                __func__, dmaBufFd_, ret);
-            disabled_ = true;
-            isSupport_ = false;
-            return false;
-        }
-    } else {
-        PM_HILOG_DEBUG(LOG_CORE, "dmaBufFd_ not exist!!");
-        return false;
+    int ret = TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_PIN, &pin_));
+    if (ret < 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin ioctl fail (disable applied), fd:%{public}d ret:%{public}d",
+            __func__, dmaBufFd_, ret);
+        disabled_ = true;
+        isSupport_ = false;
     }
     return true;
 }
@@ -193,39 +197,45 @@ bool PurgeableDmaBuf::Pin()
  * the content is at pin count 0 and may have been purged — pin once
  * more and rebuild if needed to protect the content before disabling.
  */
+/*
+ * Unpin: release one reference on the content.
+ * Return:  true if the reference count was successfully decremented;
+ *          false means the purgeable mechanism is permanently disabled
+ *          and the content will never be reclaimed by the kernel
+ *          (no valid buffer, not purgeable, ioctl error, or underflow).
+ */
 bool PurgeableDmaBuf::Unpin()
 {
-    if (!isSupport_) {
-        return true;
-    }
-    if (dmaBufFd_ >= 0) {
-        int ret = TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_UNPIN, &pin_));
-        if (ret < 0) {
-            PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail, fd:%{public}d ret:%{public}d",
-                __func__, dmaBufFd_, ret);
-            disabled_ = true;
-            isSupport_ = false;
-            return false;
-        }
-        if (ret > 0) {
-            /*
-             * Underflow: pin count was 0, content may have been purged.
-             * Pin and rebuild to protect the content before disabling.
-             * This mirrors DisablePurgeable's internal BeginReadUnlocked
-             * logic, but skips its failure-path Unpin — the pin is
-             * intentionally kept because the object is being disabled.
-             */
-            PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin underflow, fd:%{public}d",
-                __func__, dmaBufFd_);
-            if (Pin() && IfNeedRebuild()) {
-                BuildContent();
-            }
-            disabled_ = true;
-            isSupport_ = false;
-            return false;
-        }
-    } else {
+    if (dmaBufFd_ < 0) {
         PM_HILOG_DEBUG(LOG_CORE, "dmaBufFd_ not exist!!");
+        return false;
+    }
+    if (!isSupport_) {
+        return false;
+    }
+    int ret = TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_UNPIN, &pin_));
+    if (ret < 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail, fd:%{public}d ret:%{public}d",
+            __func__, dmaBufFd_, ret);
+        disabled_ = true;
+        isSupport_ = false;
+        return false;
+    }
+    if (ret > 0) {
+        /*
+         * Underflow: pin count was 0, content may have been purged.
+         * Pin and rebuild to protect the content before disabling.
+         * This mirrors DisablePurgeable's internal BeginReadUnlocked
+         * logic, but skips its failure-path Unpin — the pin is
+         * intentionally kept because the object is being disabled.
+         */
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin underflow, fd:%{public}d",
+            __func__, dmaBufFd_);
+        if (Pin() && IfNeedRebuild()) {
+            BuildContent();
+        }
+        disabled_ = true;
+        isSupport_ = false;
         return false;
     }
     return true;

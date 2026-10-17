@@ -61,9 +61,9 @@ public:
 
     /*
      * EndRead: end read the PurgeableMem obj.
-     * OS may reclaim the memory of its content
-     * at a later time when this function returns.
-     * Return:  true if the pin is released successfully, false on Unpin failure.
+     * Return:  true if the Unpin succeeded (reference count decremented);
+     *          false means the purgeable mechanism is permanently disabled
+     *          and the content will never be reclaimed by the kernel.
      */
     bool EndRead();
 
@@ -90,9 +90,9 @@ public:
 
     /*
      * EndWrite: end write the PurgeableMem obj.
-     * OS may reclaim the memory of its content
-     * at a later time when this function returns.
-     * Return:  true if the pin is released successfully, false on Unpin failure.
+     * Return:  true if the Unpin succeeded (reference count decremented);
+     *          false means the purgeable mechanism is permanently disabled
+     *          and the content will never be reclaimed by the kernel.
      */
     bool EndWrite();
 

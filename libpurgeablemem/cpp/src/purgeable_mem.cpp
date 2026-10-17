@@ -110,6 +110,7 @@ bool PurgeableMem::CreatePurgeableData()
     return true;
 }
 
+/* Pin: protect the content from being reclaimed. Same semantics as dmabuf/ashmem. */
 bool PurgeableMem::Pin()
 {
     if (!isSupport_) {
@@ -120,10 +121,11 @@ bool PurgeableMem::Pin()
     return true;
 }
 
+/* Unpin: allow the content to be reclaimed. Same semantics as dmabuf/ashmem. */
 bool PurgeableMem::Unpin()
 {
     if (!isSupport_) {
-        return true;
+        return false;
     }
     IF_NULL_LOG_ACTION(pageTable_, "pageTable_ is nullptr in Unpin", return false);
     pageTable_->PutUxpte((uint64_t)dataPtr_, dataSizeInput_);

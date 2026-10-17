@@ -572,11 +572,13 @@ HWTEST_F(PurgeableAshmemTest, IsPurgedTest, TestSize.Level1)
 {
     std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
     std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
-    PurgeableAshMem pobj(std::move(builder1));
+    PurgeableAshMem pobj(27, std::move(builder1));
     pobj.isSupport_ = 0;
     EXPECT_EQ(pobj.IsPurged(), false);
+    /* Pin returns true (valid fd + not purgeable = inherently protected);
+     * Unpin returns false (not purgeable, permanently not reclaimable) */
     EXPECT_EQ(pobj.Pin(), true);
-    EXPECT_EQ(pobj.Unpin(), true);
+    EXPECT_EQ(pobj.Unpin(), false);
     /* GetPinStatus returns -1 when the purgeable feature is not active */
     EXPECT_EQ(pobj.GetPinStatus(), -1);
     pobj.isSupport_ = 1;
