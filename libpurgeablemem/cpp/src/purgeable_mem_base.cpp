@@ -88,7 +88,8 @@ bool PurgeableMemBase::BeginReadUnlocked()
     std::string beginReadTraceName = "PurgeableMem::BeginRead(size=" + std::to_string(dataSizeInput_) + ")";
     PMStartTrace(beginReadTraceName);
     if (!Pin()) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail", __func__);
+        /* Pin returns false only when there is no valid buffer */
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail, no valid buffer", __func__);
         PMFinishTrace();
         return false;
     }
@@ -133,7 +134,7 @@ bool PurgeableMemBase::EndRead()
     /* always unpin: the pin was taken by BeginRead, it must be released
      * even if isDataValid_ became false in between, otherwise the pin leaks */
     if (!Unpin()) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail", __func__);
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: purgeable permanently disabled", __func__);
         return false;
     }
     return true;
@@ -180,7 +181,8 @@ bool PurgeableMemBase::BeginWrite()
     IF_NULL_LOG_ACTION(builder_, "builder_ is nullptr in BeginWrite", return false);
 
     if (!Pin()) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail", __func__);
+        /* Pin returns false only when there is no valid buffer */
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Pin fail, no valid buffer", __func__);
         return false;
     }
     PMState err = PM_OK;
@@ -218,7 +220,7 @@ bool PurgeableMemBase::EndWrite()
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s pinCount:%{public}d %{public}s",
         __func__, GetPinStatus(), ToString().c_str());
     if (!Unpin()) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin fail", __func__);
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: purgeable permanently disabled", __func__);
         return false;
     }
     return true;

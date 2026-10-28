@@ -419,6 +419,10 @@ static void DisableWithoutPurgeCase()
     EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
     EXPECT_TRUE(pobj.DisablePurgeable());
     EXPECT_FALSE(pobj.isSupport_);
+    /* BeginRead still succeeds (content present), EndRead returns false
+     * (content is permanently protected, not reclaimable) */
+    ASSERT_TRUE(pobj.BeginRead());
+    EXPECT_FALSE(pobj.EndRead()) << "EndRead must return false after disable (not reclaimable)";
     /* the pin is held forever after disable, reclaim cannot purge the content */
     LoopReclaimPurgeableDma(1);
     EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, alphabet, ALPHABET_CMP_LEN));
@@ -1218,18 +1222,21 @@ HWTEST_F(PurgeableDmaBufTest, IsPurgedTest, TestSize.Level1)
     }
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
     PurgeableDmaBuf pobj(std::move(builder));
+    ASSERT_TRUE(pobj.CreatePurgeableData(ALPHABET_BUF_SIZE));
     pobj.isSupport_ = false;
     EXPECT_EQ(pobj.IsPurged(), false);
+    /* Pin returns true (valid fd + not purgeable = inherently protected);
+     * Unpin returns false (not purgeable, permanently not reclaimable) */
     EXPECT_EQ(pobj.Pin(), true);
-    EXPECT_EQ(pobj.Unpin(), true);
+    EXPECT_EQ(pobj.Unpin(), false);
     /* GetPinStatus returns -1 when the purgeable feature is not active */
     EXPECT_EQ(pobj.GetPinStatus(), -1);
     pobj.isSupport_ = true;
-    /* fd 0 (stdin): enters the ioctl branch (>= 0) but the ioctl fails on
-     * a non-dma-buf fd, Pin/Unpin return false and disable the object */
+    /* fd 0 (stdin): ioctl fails on a non-dma-buf fd, Pin returns true
+     * (disable fallback = content inherently protected), Unpin returns false */
     pobj.dmaBufFd_ = 0;
-    EXPECT_EQ(pobj.Pin(), false);
-    /* Pin failure disables the object as safety fallback */
+    EXPECT_EQ(pobj.Pin(), true);
+    /* Pin ioctl failure disabled the object as safety fallback */
     EXPECT_FALSE(pobj.isSupport_);
     EXPECT_TRUE(pobj.disabled_);
     /* restore for the Unpin test on the same fd */
