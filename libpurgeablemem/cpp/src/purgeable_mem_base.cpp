@@ -165,8 +165,18 @@ bool PurgeableMemBase::DisablePurgeable()
     }
     disabled_ = true;
     isSupport_ = false;
+    /* best-effort kernel-side disable; failure is a soft degradation */
+    int ret = DisablePurgeableKernel();
+    if (ret != 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: kernel disable fail (soft), ret:%{public}d", __func__, ret);
+    }
     PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, %{public}s", __func__, ToString().c_str());
     return true;
+}
+
+int PurgeableMemBase::DisablePurgeableKernel()
+{
+    return 0;
 }
 
 bool PurgeableMemBase::BeginWrite()

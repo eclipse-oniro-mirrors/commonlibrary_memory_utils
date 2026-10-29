@@ -41,6 +41,13 @@ protected:
     bool CreatePurgeableData();
     void AfterRebuildSucc() override;
     std::string ToString() const override;
+
+private:
+    /*
+     * CreatePurgeableDataUnlocked: the lock-free body of CreatePurgeableData.
+     * The caller must hold dataLock_.
+     */
+    bool CreatePurgeableDataUnlocked();
 };
 } /* namespace PurgeableMem */
 } /* namespace OHOS */

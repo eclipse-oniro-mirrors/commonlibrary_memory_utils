@@ -78,16 +78,60 @@ public:
     bool ChangeDmaBufData(size_t size, int fd, void *data);
 
     /*
+     * Replace the current DMA buffer with a new one, transferring the
+     * kernel pin count. The caller must be inside a BeginRead/BeginWrite
+     * section (old buffer pinned at least once). The content in the new
+     * buffer must already be built by the caller (with @newBuilder).
+     * The old fd is NOT closed — the caller retains ownership.
+     * @return true on success, false on failure (object state unchanged).
+     */
+    bool ReplaceDmaBuf(size_t size, int newFd, void *newData,
+                       std::unique_ptr<PurgeableMemBuilder> newBuilder);
+
+    /*
      * Resize the self-allocated DMA buffer, the content will be rebuilt by
      * builder at the next access. Buffers taken over by ChangeDmaBufData()
      * cannot be resized.
      */
     void ResizeData(size_t newSize) override;
+    int DisablePurgeableKernel() override;
 
     PurgMemType GetPurgMemType() const override;
     int GetFd() const override;
     unsigned long GetIno() const override;
     int GetPinStatus() const override;
+
+private:
+    /*
+     * CreatePurgeableDataUnlocked: the lock-free body of CreatePurgeableData.
+     * The caller must hold dataLock_.
+     */
+    bool CreatePurgeableDataUnlocked(size_t size, const char *heapName);
+    /*
+     * TryRebuildAfterUnderflow: guard-style best-effort content recovery.
+     * Each check is an early return. Return: true if content is present.
+     */
+    bool TryRebuildAfterUnderflow();
+
+    /*
+     * HandleUnpinUnderflow: the pin count underflowed. Best-effort
+     * recovery, then permanently disable the object.
+     */
+    void HandleUnpinUnderflow();
+
+    /*
+     * ValidateReplaceDmaBuf: parameter and state validation for ReplaceDmaBuf.
+     * Return: true if all parameters and state are valid.
+     */
+    bool ValidateReplaceDmaBuf(size_t size, int newFd, void *newData,
+                               const std::unique_ptr<PurgeableMemBuilder> &newBuilder);
+
+    /*
+     * AlignPinCount: pin the new fd until its kernel pin count matches
+     * @targetCount. The new buffer starts at count 1 after SET_PURGEABLE.
+     * Return: true if aligned, false on ioctl failure.
+     */
+    bool AlignPinCount(int newFd, int targetCount);
 
 protected:
     int dmaBufFd_ = -1;
