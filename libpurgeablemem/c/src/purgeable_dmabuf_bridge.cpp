@@ -65,3 +65,21 @@ int PurgDmaBufRebuildSuccess(int dmabufFd)
 {
     return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_PURGEABLE_REBUILD_SUCCESS));
 }
+
+int PurgDmaBufGetIno(int dmabufFd, unsigned long long *ino)
+{
+    if (ino == nullptr) {
+        return -1;
+    }
+    struct DmaBufPurgeableIno inoInfo = {};
+    int ret = TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_PURGEABLE_GET_INO, &inoInfo));
+    if (ret == 0) {
+        *ino = inoInfo.ino;
+    }
+    return ret;
+}
+
+int PurgDmaBufDisablePurgeable(int dmabufFd)
+{
+    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_DISABLE_PURGEABLE));
+}

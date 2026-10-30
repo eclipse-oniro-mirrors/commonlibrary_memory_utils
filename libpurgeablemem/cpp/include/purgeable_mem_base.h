@@ -105,6 +105,15 @@ public:
     bool DisablePurgeable();
 
     /*
+     * DisablePurgeableKernel: best-effort kernel-side disable hook.
+     * Called by DisablePurgeable() and the disable-fallback paths after
+     * the userspace disabled_ flag is set. Failure is logged and ignored
+     * (soft degradation) — the userspace flag alone guarantees safety.
+     * Return:  0 on success, negative on failure.
+     */
+    virtual int DisablePurgeableKernel();
+
+    /*
      * ModifyContentByBuilder: append a PurgeableMemBuilder obj to the PurgeableMem obj.
      * Input:   @modifier: unique_ptr of PurgeableMemBuilder, it will modify content of this obj.
      * Return:  modify result, true is success, while false is fail.

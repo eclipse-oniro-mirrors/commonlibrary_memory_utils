@@ -92,6 +92,12 @@ bool PurgeableMem::IsPurged()
 
 bool PurgeableMem::CreatePurgeableData()
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
+    return CreatePurgeableDataUnlocked();
+}
+
+bool PurgeableMem::CreatePurgeableDataUnlocked()
+{
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     pageTable_ = nullptr;
     size_t size = RoundUp(dataSizeInput_, PAGE_SIZE);
@@ -146,6 +152,7 @@ int PurgeableMem::GetPinStatus() const
 
 void PurgeableMem::ResizeData(size_t newSize)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (newSize <= 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, newSize);
         return;
@@ -158,7 +165,7 @@ void PurgeableMem::ResizeData(size_t newSize)
         }
     }
     dataSizeInput_ = newSize;
-    if (!CreatePurgeableData()) {
+    if (!CreatePurgeableDataUnlocked()) {
         PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
         return;
     }

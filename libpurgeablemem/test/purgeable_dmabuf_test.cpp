@@ -1110,6 +1110,162 @@ HWTEST_F(PurgeableDmaBufTest, ChangeDmaBufDataTwiceTest, TestSize.Level1)
 }
 
 /*
+ * ReplaceDmaBufVerifyPinned: verify state after ReplaceDmaBuf while pinned.
+ */
+static void ReplaceDmaBufVerifyPinned(PurgeableDmaBuf *pobj, int newFd, int oldBuildCount)
+{
+    EXPECT_EQ(pobj->GetDmaBufFd(), newFd);
+    EXPECT_EQ(pobj->GetContentSize(), ALPHABET_BUF_SIZE);
+    if (pobj->isSupport_) {
+        EXPECT_EQ(pobj->GetPinStatus(), PIN_COUNT_ONE_PIN) << "new buffer should inherit old pin count";
+    }
+    EXPECT_EQ(pobj->buildDataCount_, oldBuildCount) << "buildDataCount must carry over";
+}
+
+/*
+ * ReplaceDmaBufVerifyPurge: verify the purge-rebuild cycle after ReplaceDmaBuf.
+ */
+static void ReplaceDmaBufVerifyPurge(PurgeableDmaBuf *pobj, const char *alphabet)
+{
+    /* inherited pin from Replace keeps count at 1, cannot purge yet */
+    EXPECT_EQ(pobj->IsPurged(), false);
+    pobj->Unpin(); /* release the inherited pin, allow reclaim */
+    if (ReclaimPurgeableDma()) {
+        std::this_thread::sleep_for(std::chrono::seconds(RECLAIM_INTERVAL_SECONDS));
+        EXPECT_EQ(pobj->IsPurged(), true);
+        EXPECT_TRUE(ReadVerifyDmabufContent(pobj, alphabet, ALPHABET_CMP_LEN))
+            << "new builder must rebuild after purge";
+    }
+}
+
+/*
+ * ReplaceDmaBufTest: replace the underlying DMA buffer while pinned,
+ * verifying pin count transfer, builder replacement, content integrity,
+ * and that the old fd is not closed by the library.
+ */
+HWTEST_F(PurgeableDmaBufTest, ReplaceDmaBufTest, TestSize.Level1)
+{
+    if (SkipDmabufTest()) {
+        return;
+    }
+    const char oldData[] = "ZZZZZZZZZZZZZZZZZZZZZZZZZ";
+    const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+    size_t size = PAGE_SIZE;
+    void *oldDataPtr = nullptr;
+    void *newDataPtr = nullptr;
+    int oldHeapFd = -1;
+    int newHeapFd = -1;
+    DmabufHeapBuffer oldBuffer = {};
+    DmabufHeapBuffer newBuffer = {};
+    ASSERT_TRUE(AllocDmabuf(size, &oldDataPtr, &oldHeapFd, &oldBuffer));
+    ASSERT_TRUE(AllocDmabuf(size, &newDataPtr, &newHeapFd, &newBuffer));
+    int oldFd = static_cast<int>(oldBuffer.fd);
+    int newFd = static_cast<int>(newBuffer.fd);
+
+    /* set up: old buffer with caller data */
+    auto retStrcpy = strcpy_s(static_cast<char *>(oldDataPtr), size, oldData);
+    ASSERT_EQ(retStrcpy, 0);
+    std::unique_ptr<PurgeableMemBuilder> oldBuilder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobj(std::move(oldBuilder));
+    ASSERT_TRUE(pobj.ChangeDmaBufData(ALPHABET_BUF_SIZE, oldFd, oldDataPtr));
+    int oldBuildCount = pobj.buildDataCount_;
+
+    /* copy content to new buffer (simulating business resize) */
+    errno_t retCopy = memcpy_s(newDataPtr, size, oldDataPtr, size);
+    ASSERT_EQ(retCopy, EOK);
+    std::unique_ptr<PurgeableMemBuilder> newBuilder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+
+    /* replace while pinned */
+    ASSERT_TRUE(pobj.BeginRead());
+    EXPECT_TRUE(pobj.ReplaceDmaBuf(ALPHABET_BUF_SIZE, newFd, newDataPtr, std::move(newBuilder)));
+    ReplaceDmaBufVerifyPinned(&pobj, newFd, oldBuildCount);
+
+    /* EndRead operates on the new buffer */
+    EXPECT_TRUE(pobj.EndRead());
+    /* content accessible and correct */
+    EXPECT_TRUE(ReadVerifyDmabufContent(&pobj, oldData, ALPHABET_CMP_LEN));
+    /* old fd not closed by the library */
+    EXPECT_NE(fcntl(oldFd, F_GETFD), -1) << "old fd must not be closed";
+    /* after purge, the new builder rebuilds */
+    if (pobj.isSupport_) {
+        ReplaceDmaBufVerifyPurge(&pobj, alphabet);
+    }
+    FreeDmaBuf(oldDataPtr, size, oldHeapFd, &oldBuffer);
+    FreeDmaBuf(newDataPtr, size, newHeapFd, &newBuffer);
+}
+
+/*
+ * ReplaceDmaBufInvalidTest: replace with invalid parameters must fail,
+ * and the object state must remain unchanged.
+ */
+HWTEST_F(PurgeableDmaBufTest, ReplaceDmaBufInvalidTest, TestSize.Level1)
+{
+    if (SkipDmabufTest()) {
+        return;
+    }
+    size_t size = PAGE_SIZE;
+    void *data1 = nullptr;
+    void *data2 = nullptr;
+    int heapFd1 = -1;
+    int heapFd2 = -1;
+    DmabufHeapBuffer buffer1 = {};
+    DmabufHeapBuffer buffer2 = {};
+    ASSERT_TRUE(AllocDmabuf(size, &data1, &heapFd1, &buffer1));
+    ASSERT_TRUE(AllocDmabuf(size, &data2, &heapFd2, &buffer2));
+    int fd1 = static_cast<int>(buffer1.fd);
+    int fd2 = static_cast<int>(buffer2.fd);
+
+    std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobj(std::move(builder1));
+
+    /* self-allocated buffer (isChange_ = false): must be rejected */
+    ASSERT_TRUE(pobj.CreatePurgeableData(ALPHABET_BUF_SIZE));
+    std::unique_ptr<PurgeableMemBuilder> selfBuilder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    ASSERT_TRUE(pobj.BeginRead());
+    EXPECT_FALSE(pobj.ReplaceDmaBuf(ALPHABET_BUF_SIZE, fd2, data2, std::move(selfBuilder)))
+        << "self-allocated buffer must be rejected, use ResizeData";
+    EXPECT_TRUE(pobj.EndRead());
+
+    /* buildDataCount_ == 0 (content never built): must be rejected.
+     * Use Pin() directly instead of BeginRead() — BeginRead would trigger
+     * IfNeedRebuild -> BuildContent -> buildDataCount_ becomes 1. */
+    std::unique_ptr<PurgeableMemBuilder> unbuiltBuilder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobjUnbuilt(std::move(unbuiltBuilder));
+    ASSERT_TRUE(pobjUnbuilt.ChangeDmaBufData(ALPHABET_BUF_SIZE, fd1, data1));
+    pobjUnbuilt.buildDataCount_ = 0; /* force never-built state */
+    /* pin directly to satisfy the pin check without triggering rebuild */
+    ASSERT_TRUE(pobjUnbuilt.Pin());
+    std::unique_ptr<PurgeableMemBuilder> unbuiltNewBuilder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    EXPECT_FALSE(pobjUnbuilt.ReplaceDmaBuf(ALPHABET_BUF_SIZE, fd2, data2, std::move(unbuiltNewBuilder)))
+        << "buildDataCount == 0 must be rejected";
+    pobjUnbuilt.Unpin();
+
+    /* externally taken-over buffer: normal invalid parameter tests */
+    /* need to switch to external first */
+    std::unique_ptr<PurgeableMemBuilder> builder2 = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    PurgeableDmaBuf pobj2(std::move(builder2));
+    ASSERT_TRUE(pobj2.ChangeDmaBufData(ALPHABET_BUF_SIZE, fd1, data1));
+    ASSERT_TRUE(pobj2.BeginRead()); /* pin old buffer */
+
+    std::unique_ptr<PurgeableMemBuilder> builder3 = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    /* invalid size */
+    EXPECT_FALSE(pobj2.ReplaceDmaBuf(0, fd2, data2, std::move(builder3)));
+    /* invalid fd */
+    builder3 = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    EXPECT_FALSE(pobj2.ReplaceDmaBuf(ALPHABET_BUF_SIZE, -1, data2, std::move(builder3)));
+    /* null data */
+    builder3 = std::make_unique<DmaTestDataBuilder>('A', 'Z');
+    EXPECT_FALSE(pobj2.ReplaceDmaBuf(ALPHABET_BUF_SIZE, fd2, nullptr, std::move(builder3)));
+    /* null builder */
+    EXPECT_FALSE(pobj2.ReplaceDmaBuf(ALPHABET_BUF_SIZE, fd2, data2, nullptr));
+    /* object state unchanged after all failures */
+    EXPECT_EQ(pobj2.GetDmaBufFd(), fd1) << "failed replace must not change fd";
+    EXPECT_TRUE(pobj2.EndRead());
+    FreeDmaBuf(data1, size, heapFd1, &buffer1);
+    FreeDmaBuf(data2, size, heapFd2, &buffer2);
+}
+
+/*
  * ChangeToNonPurgeableTest: switching from a purgeable-capable buffer to a
  * non-dma-buf fd must fail (marking fails), the object stays unchanged.
  */

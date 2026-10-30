@@ -88,6 +88,15 @@ struct DmaBufPurgeableIno {
 #define DMA_BUF_PURGEABLE_GET_INO _IOR(DMA_BUF_BASE, 16, struct DmaBufPurgeableIno)
 #endif
 
+/*
+ * Disable the purgeable feature of the dma-buf in the kernel.
+ * The kernel only allows this when the content is intact (not purged);
+ * returns 0 on success, negative on failure (content purged or not purgeable).
+ */
+#ifndef DMA_BUF_DISABLE_PURGEABLE
+#define DMA_BUF_DISABLE_PURGEABLE _IO(DMA_BUF_BASE, 17)
+#endif
+
 /* return value of DMA_BUF_GET_PURGEABLE: the dma-buf is purgeable */
 #define PURGEABLE_DMA_BUF_PURGEABLE 1
 
@@ -160,6 +169,23 @@ int PurgDmaBufIsPurged(int dmabufFd);
  * Return:  the raw ioctl return value, 0 means success.
  */
 int PurgDmaBufRebuildSuccess(int dmabufFd);
+
+/*
+ * PurgDmaBufGetIno: get the internal inode number of the dma-buf @dmabufFd.
+ * Input:   @dmabufFd: fd of the dma-buf.
+ * Input:   @ino: output pointer to store the inode number.
+ * Return:  the raw ioctl return value, 0 means success (ino is filled).
+ */
+int PurgDmaBufGetIno(int dmabufFd, unsigned long long *ino);
+
+/*
+ * PurgDmaBufDisablePurgeable: disable the purgeable feature of the dma-buf
+ * @dmabufFd in the kernel. The kernel only allows this when the content is
+ * intact (not purged).
+ * Input:   @dmabufFd: fd of the dma-buf.
+ * Return:  the raw ioctl return value, 0 means success.
+ */
+int PurgDmaBufDisablePurgeable(int dmabufFd);
 
 #ifdef __cplusplus
 #if __cplusplus

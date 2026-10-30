@@ -186,6 +186,7 @@ bool PurgeableDmaBuf::Pin()
             __func__, dmaBufFd_, ret);
         disabled_ = true;
         isSupport_ = false;
+        (void)DisablePurgeableKernel();
     }
     return true;
 }
@@ -204,6 +205,50 @@ bool PurgeableDmaBuf::Pin()
  *          and the content will never be reclaimed by the kernel
  *          (no valid buffer, not purgeable, ioctl error, or underflow).
  */
+/*
+ * TryRebuildAfterUnderflow: guard-style best-effort content recovery.
+ * Each check is an early return on failure.
+ * Return: true if content is present (or rebuilt), false on failure.
+ */
+bool PurgeableDmaBuf::TryRebuildAfterUnderflow()
+{
+    /* guard: cannot re-pin, skip rebuild */
+    if (!Pin()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: re-pin fail", __func__);
+        return false;
+    }
+    /* guard: content present, no rebuild needed */
+    if (!IfNeedRebuild()) {
+        return true;
+    }
+    /* guard: rebuild failed */
+    if (!BuildContent()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: rebuild fail", __func__);
+        return false;
+    }
+    /* rebuild succeeded: clear the kernel purged flag */
+    AfterRebuildSucc();
+    return true;
+}
+
+/*
+ * HandleUnpinUnderflow: the pin count underflowed (was already 0).
+ * Best-effort recovery, then permanently disable the object.
+ * DisablePurgeableKernel is called only when the content is successfully
+ * protected — the kernel rejects the disable ioctl on non-intact content.
+ */
+void PurgeableDmaBuf::HandleUnpinUnderflow()
+{
+    PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin underflow, fd:%{public}d",
+        __func__, dmaBufFd_);
+    bool rebuilt = TryRebuildAfterUnderflow();
+    disabled_ = true;
+    isSupport_ = false;
+    if (rebuilt) {
+        (void)DisablePurgeableKernel();
+    }
+}
+
 bool PurgeableDmaBuf::Unpin()
 {
     if (dmaBufFd_ < 0) {
@@ -219,23 +264,11 @@ bool PurgeableDmaBuf::Unpin()
             __func__, dmaBufFd_, ret);
         disabled_ = true;
         isSupport_ = false;
+        (void)DisablePurgeableKernel();
         return false;
     }
     if (ret > 0) {
-        /*
-         * Underflow: pin count was 0, content may have been purged.
-         * Pin and rebuild to protect the content before disabling.
-         * This mirrors DisablePurgeable's internal BeginReadUnlocked
-         * logic, but skips its failure-path Unpin — the pin is
-         * intentionally kept because the object is being disabled.
-         */
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: Unpin underflow, fd:%{public}d",
-            __func__, dmaBufFd_);
-        if (Pin() && IfNeedRebuild()) {
-            BuildContent();
-        }
-        disabled_ = true;
-        isSupport_ = false;
+        HandleUnpinUnderflow();
         return false;
     }
     return true;
@@ -279,6 +312,12 @@ void PurgeableDmaBuf::ReleaseSelfAllocatedBuffer()
 }
 
 bool PurgeableDmaBuf::CreatePurgeableData(size_t size, const char *heapName)
+{
+    std::lock_guard<std::mutex> lock(dataLock_);
+    return CreatePurgeableDataUnlocked(size, heapName);
+}
+
+bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapName)
 {
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     if (size == 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
@@ -334,6 +373,7 @@ bool PurgeableDmaBuf::CreatePurgeableData(size_t size, const char *heapName)
 
 bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (size <= 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
         return false;
@@ -350,6 +390,11 @@ bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
     if (disabled_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return false;
+    }
+    /* same fd: no-op, avoid re-marking and resetting the kernel pin count */
+    if (fd == dmaBufFd_) {
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: same fd, skip", __func__);
+        return true;
     }
 
     /*
@@ -377,8 +422,124 @@ bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
     return true;
 }
 
+int PurgeableDmaBuf::DisablePurgeableKernel()
+{
+    if (dmaBufFd_ < 0) {
+        return -1;
+    }
+    return PurgDmaBufDisablePurgeable(dmaBufFd_);
+}
+
+/*
+ * AlignPinCount: pin the new fd until its kernel pin count matches
+ * @targetCount. The new buffer starts at count 1 after SET_PURGEABLE.
+ * Return: true if aligned, false on ioctl failure.
+ */
+bool PurgeableDmaBuf::AlignPinCount(int newFd, int targetCount)
+{
+    for (int i = 1; i < targetCount; i++) {
+        struct DmaBufPurgeablePin pin = {0, 0};
+        if (TEMP_FAILURE_RETRY(ioctl(newFd, DMA_BUF_PURGEABLE_PIN, &pin)) < 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
+ * ValidateReplaceDmaBuf: parameter and state validation for ReplaceDmaBuf.
+ * Return: true if all parameters and state are valid.
+ */
+bool PurgeableDmaBuf::ValidateReplaceDmaBuf(size_t size, int newFd, void *newData,
+    const std::unique_ptr<PurgeableMemBuilder> &newBuilder)
+{
+    if (size == 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
+        return false;
+    }
+    if (newFd < 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid new fd", __func__);
+        return false;
+    }
+    if (newData == nullptr) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: new data is nullptr", __func__);
+        return false;
+    }
+    if (newBuilder == nullptr) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: new builder is nullptr", __func__);
+        return false;
+    }
+    if (disabled_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return false;
+    }
+    /* self-allocated buffers must use ResizeData (otherwise fd/mmap leak) */
+    if (!isChange_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: self-allocated, use ResizeData", __func__);
+        return false;
+    }
+    /* old buffer must be pinned (caller is inside a Begin access section) */
+    if (GetPinStatus() < 1) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: old buffer not pinned", __func__);
+        return false;
+    }
+    /* content never built: use ChangeDmaBufData for the empty-takeover path */
+    if (buildDataCount_ == 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: content never built, use ChangeDmaBufData", __func__);
+        return false;
+    }
+    return true;
+}
+
+/*
+ * ReplaceDmaBuf: atomically swap the underlying DMA buffer.
+ * The caller must be inside a Begin access section (old buffer pinned >= 1).
+ * The new buffer must have its content already built by the caller.
+ */
+bool PurgeableDmaBuf::ReplaceDmaBuf(size_t size, int newFd, void *newData,
+    std::unique_ptr<PurgeableMemBuilder> newBuilder)
+{
+    std::lock_guard<std::mutex> lock(dataLock_);
+    int oldPinCount = GetPinStatus();
+    if (!ValidateReplaceDmaBuf(size, newFd, newData, newBuilder)) {
+        return false;
+    }
+
+    /* probe the new fd: mark as purgeable (kernel sets count to 1) */
+    if (!MarkDmaBufPurgeable(newFd)) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark new fd fail, fd:%{public}d", __func__, newFd);
+        return false;
+    }
+
+    /* align the new fd's pin count to match the old */
+    if (!AlignPinCount(newFd, oldPinCount)) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: align pin count fail, best-effort disable", __func__);
+        (void)PurgDmaBufDisablePurgeable(newFd);
+        return false;
+    }
+
+    /*
+     * Commit: swap all internal state. The old fd is NOT closed — the
+     * caller retains ownership. buildDataCount_ is NOT reset — the new
+     * buffer's content is already built by the caller.
+     */
+    dmaBufFd_ = newFd;
+    dataPtr_ = newData;
+    dataSizeInput_ = size;
+    isChange_ = true;
+    isSupport_ = true;
+    pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
+    builder_ = std::move(newBuilder);
+    ino_ = QueryDmaBufIno(dmaBufFd_);
+
+    PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, oldPin:%{public}d fd:%{public}d ino:%{public}lu size:%{public}zu",
+        __func__, oldPinCount, dmaBufFd_, ino_, dataSizeInput_);
+    return true;
+}
+
 void PurgeableDmaBuf::ResizeData(size_t newSize)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (newSize == 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, newSize);
         return;
@@ -403,7 +564,7 @@ void PurgeableDmaBuf::ResizeData(size_t newSize)
         close(dmaBufFd_);
         dmaBufFd_ = -1;
     }
-    if (!CreatePurgeableData(newSize)) {
+    if (!CreatePurgeableDataUnlocked(newSize, "system")) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: resize to %{public}zu fail", __func__, newSize);
     }
 }

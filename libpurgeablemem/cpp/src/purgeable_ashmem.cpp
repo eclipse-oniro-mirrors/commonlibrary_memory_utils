@@ -136,6 +136,12 @@ static bool AllocAndMapAshmem(size_t size, int *fd, void **data)
 
 bool PurgeableAshMem::CreatePurgeableData()
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
+    return CreatePurgeableDataUnlocked();
+}
+
+bool PurgeableAshMem::CreatePurgeableDataUnlocked()
+{
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     if (dataSizeInput_ == 0) {
         return false;
@@ -273,6 +279,7 @@ void PurgeableAshMem::AfterRebuildSucc()
 
 void PurgeableAshMem::ResizeData(size_t newSize)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (newSize == 0 || newSize >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, newSize);
         return;
@@ -298,13 +305,14 @@ void PurgeableAshMem::ResizeData(size_t newSize)
         ashmemFd_ = -1;
     }
     dataSizeInput_ = newSize;
-    if (!CreatePurgeableData()) {
+    if (!CreatePurgeableDataUnlocked()) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: resize to %{public}zu fail", __func__, newSize);
     }
 }
 
 bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
 {
+    std::lock_guard<std::mutex> lock(dataLock_);
     if (size <= 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
         return false;
@@ -321,6 +329,11 @@ bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
     if (disabled_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return false;
+    }
+    /* same fd: no-op, avoid re-marking and resetting the kernel pin count */
+    if (fd == ashmemFd_) {
+        PM_HILOG_DEBUG(LOG_CORE, "%{public}s: same fd, skip", __func__);
+        return true;
     }
 
     /* probe the new fd before committing: mark it as purgeable first */

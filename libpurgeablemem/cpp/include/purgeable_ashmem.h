@@ -70,6 +70,13 @@ public:
     PurgMemType GetPurgMemType() const override;
     int GetFd() const override;
 
+private:
+    /*
+     * CreatePurgeableDataUnlocked: the lock-free body of CreatePurgeableData.
+     * The caller must hold dataLock_.
+     */
+    bool CreatePurgeableDataUnlocked();
+
 protected:
     int ashmemFd_;
     bool isChange_;
