@@ -334,6 +334,11 @@ bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapN
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return false;
     }
+    /* reject rebind: the object already holds an external buffer */
+    if (isChange_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: already in change state, rebind forbidden", __func__);
+        return false;
+    }
 
     /* release the previous self-allocated buffer, if any */
     ReleaseSelfAllocatedBuffer();
@@ -389,6 +394,11 @@ bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
     /* reject if permanently disabled */
     if (disabled_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return false;
+    }
+    /* reject rebind: the object already holds an external buffer */
+    if (isChange_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: already in change state, rebind forbidden", __func__);
         return false;
     }
     /* same fd: no-op, avoid re-marking and resetting the kernel pin count */
@@ -447,10 +457,10 @@ bool PurgeableDmaBuf::AlignPinCount(int newFd, int targetCount)
 }
 
 /*
- * ValidateReplaceDmaBuf: parameter and state validation for ReplaceDmaBuf.
+ * ValidateReplacePurgeableMem: parameter and state validation for ReplacePurgeableMem.
  * Return: true if all parameters and state are valid.
  */
-bool PurgeableDmaBuf::ValidateReplaceDmaBuf(size_t size, int newFd, void *newData,
+bool PurgeableDmaBuf::ValidateReplacePurgeableMem(size_t size, int newFd, void *newData,
     const std::unique_ptr<PurgeableMemBuilder> &newBuilder)
 {
     if (size == 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
@@ -492,16 +502,16 @@ bool PurgeableDmaBuf::ValidateReplaceDmaBuf(size_t size, int newFd, void *newDat
 }
 
 /*
- * ReplaceDmaBuf: atomically swap the underlying DMA buffer.
+ * ReplacePurgeableMem: atomically swap the underlying DMA buffer.
  * The caller must be inside a Begin access section (old buffer pinned >= 1).
  * The new buffer must have its content already built by the caller.
  */
-bool PurgeableDmaBuf::ReplaceDmaBuf(size_t size, int newFd, void *newData,
+bool PurgeableDmaBuf::ReplacePurgeableMem(size_t size, int newFd, void *newData,
     std::unique_ptr<PurgeableMemBuilder> newBuilder)
 {
     std::lock_guard<std::mutex> lock(dataLock_);
     int oldPinCount = GetPinStatus();
-    if (!ValidateReplaceDmaBuf(size, newFd, newData, newBuilder)) {
+    if (!ValidateReplacePurgeableMem(size, newFd, newData, newBuilder)) {
         return false;
     }
 
