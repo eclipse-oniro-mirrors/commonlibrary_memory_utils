@@ -57,6 +57,8 @@ public:
      * Calls Unpin() so the empty buffer can be reclaimed by the kernel
      * until the first BeginRead/BeginWrite triggers BuildContent via builder.
      * Does NOT increment buildDataCount_.
+     * Rejected if the object already holds an external region taken over
+     * via ChangeAshmemData (rebind is forbidden).
      */
     bool CreatePurgeableData();
     /*
@@ -64,8 +66,22 @@ public:
      * converting it to purgeable.
      * Increments buildDataCount_ — assumes data is already present.
      * Does NOT call Unpin — buffer already has data, keep it pinned.
+     * One takeover per object: rejected if the object already holds an
+     * external region (rebind is forbidden — use ReplacePurgeableMem instead).
      */
     bool ChangeAshmemData(size_t size, int fd, void *data);
+
+    /*
+     * Replace the current ashmem region with a new one, transferring the
+     * kernel pin count. The caller must be inside a BeginRead/BeginWrite
+     * section (old region pinned at least once). The content in the new
+     * region must already be built by the caller (with @newBuilder).
+     * The old fd is NOT closed — the caller retains ownership.
+     * Symmetric to PurgeableDmaBuf::ReplacePurgeableMem.
+     * @return true on success, false on failure (object state unchanged).
+     */
+    bool ReplacePurgeableMem(size_t size, int newFd, void *newData,
+                             std::unique_ptr<PurgeableMemBuilder> newBuilder) override;
 
     PurgMemType GetPurgMemType() const override;
     int GetFd() const override;
@@ -76,6 +92,20 @@ private:
      * The caller must hold dataLock_.
      */
     bool CreatePurgeableDataUnlocked();
+
+    /*
+     * ValidateReplacePurgeableMem: parameter and state validation for
+     * ReplacePurgeableMem. Return: true if all parameters and state are valid.
+     */
+    bool ValidateReplacePurgeableMem(size_t size, int newFd, void *newData,
+                                     const std::unique_ptr<PurgeableMemBuilder> &newBuilder);
+
+    /*
+     * AlignPinCount: pin the new fd until its kernel pin count matches
+     * @targetCount. The new region starts at count 1 after SET_PURGEABLE.
+     * Return: true if aligned, false on ioctl failure.
+     */
+    bool AlignPinCount(int newFd, int targetCount);
 
 protected:
     int ashmemFd_;

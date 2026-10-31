@@ -179,6 +179,17 @@ int PurgeableMemBase::DisablePurgeableKernel()
     return 0;
 }
 
+bool PurgeableMemBase::ReplacePurgeableMem(size_t size, int newFd, void *newData,
+    std::unique_ptr<PurgeableMemBuilder> newBuilder)
+{
+    (void)size;
+    (void)newFd;
+    (void)newData;
+    (void)newBuilder;
+    PM_HILOG_ERROR(LOG_CORE, "%{public}s: backend does not support replace", __func__);
+    return false;
+}
+
 bool PurgeableMemBase::BeginWrite()
 {
     std::lock_guard<std::mutex> lock(dataLock_);

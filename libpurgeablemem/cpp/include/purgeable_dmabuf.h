@@ -56,6 +56,8 @@ public:
      * Calls Unpin() so the empty buffer can be reclaimed by the kernel
      * until the first BeginRead/BeginWrite triggers BuildContent via builder.
      * Does NOT increment buildDataCount_.
+     * Rejected if the object already holds an external buffer taken over
+     * via ChangeDmaBufData (rebind is forbidden — use ReplacePurgeableMem instead).
      *
      * @param size     Data size of the DMA buffer
      * @param heapName Name of the dma-heap (e.g. "system")
@@ -69,6 +71,8 @@ public:
      * Increments buildDataCount_ — assumes data is already present,
      * same as PurgeableAshMem::ChangeAshmemData.
      * Does NOT call Unpin — buffer already has data, keep it pinned.
+     * One takeover per object: rejected if the object already holds an
+     * external buffer (rebind is forbidden — use ReplacePurgeableMem instead).
      *
      * @param size   Data size of the DMA buffer
      * @param fd     File descriptor of the DMA buffer (dma-buf fd)
@@ -85,8 +89,8 @@ public:
      * The old fd is NOT closed — the caller retains ownership.
      * @return true on success, false on failure (object state unchanged).
      */
-    bool ReplaceDmaBuf(size_t size, int newFd, void *newData,
-                       std::unique_ptr<PurgeableMemBuilder> newBuilder);
+    bool ReplacePurgeableMem(size_t size, int newFd, void *newData,
+                             std::unique_ptr<PurgeableMemBuilder> newBuilder) override;
 
     /*
      * Resize the self-allocated DMA buffer, the content will be rebuilt by
@@ -120,11 +124,11 @@ private:
     void HandleUnpinUnderflow();
 
     /*
-     * ValidateReplaceDmaBuf: parameter and state validation for ReplaceDmaBuf.
-     * Return: true if all parameters and state are valid.
+     * ValidateReplacePurgeableMem: parameter and state validation for
+     * ReplacePurgeableMem. Return: true if all parameters and state are valid.
      */
-    bool ValidateReplaceDmaBuf(size_t size, int newFd, void *newData,
-                               const std::unique_ptr<PurgeableMemBuilder> &newBuilder);
+    bool ValidateReplacePurgeableMem(size_t size, int newFd, void *newData,
+                                     const std::unique_ptr<PurgeableMemBuilder> &newBuilder);
 
     /*
      * AlignPinCount: pin the new fd until its kernel pin count matches

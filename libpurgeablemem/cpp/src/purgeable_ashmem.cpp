@@ -151,6 +151,11 @@ bool PurgeableAshMem::CreatePurgeableDataUnlocked()
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return false;
     }
+    /* reject rebind: the object already holds an external region */
+    if (isChange_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: already in change state, rebind forbidden", __func__);
+        return false;
+    }
     /* release the previous self-allocated ashmem region, if any */
     if (!isChange_ && dataPtr_) {
         if (munmap(dataPtr_, RoundUp(dataSizeInput_, PAGE_SIZE)) != 0) {
@@ -330,6 +335,11 @@ bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
         return false;
     }
+    /* reject rebind: the object already holds an external region */
+    if (isChange_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: already in change state, rebind forbidden", __func__);
+        return false;
+    }
     /* same fd: no-op, avoid re-marking and resetting the kernel pin count */
     if (fd == ashmemFd_) {
         PM_HILOG_DEBUG(LOG_CORE, "%{public}s: same fd, skip", __func__);
@@ -360,6 +370,114 @@ bool PurgeableAshMem::ChangeAshmemData(size_t size, int fd, void *data)
     buildDataCount_++;
     isChange_ = true;
     isSupport_ = true;
+    return true;
+}
+
+/*
+ * ValidateReplacePurgeableMem: parameter and state validation for ReplacePurgeableMem.
+ * Return: true if all parameters and state are valid.
+ */
+bool PurgeableAshMem::ValidateReplacePurgeableMem(size_t size, int newFd, void *newData,
+    const std::unique_ptr<PurgeableMemBuilder> &newBuilder)
+{
+    if (size == 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
+        return false;
+    }
+    if (newFd < 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid new fd", __func__);
+        return false;
+    }
+    if (newData == nullptr) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: new data is nullptr", __func__);
+        return false;
+    }
+    if (newBuilder == nullptr) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: new builder is nullptr", __func__);
+        return false;
+    }
+    if (disabled_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
+        return false;
+    }
+    /* self-allocated regions must use ResizeData (otherwise fd/mmap leak) */
+    if (!isChange_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: self-allocated, use ResizeData", __func__);
+        return false;
+    }
+    /* old region must be pinned (caller is inside a Begin access section) */
+    if (GetPinStatus() < 1) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: old region not pinned", __func__);
+        return false;
+    }
+    /* content never built: use ChangeAshmemData for the empty-takeover path */
+    if (buildDataCount_ == 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: content never built, use ChangeAshmemData", __func__);
+        return false;
+    }
+    return true;
+}
+
+/*
+ * AlignPinCount: pin the new fd until its kernel pin count matches
+ * @targetCount. The new region starts at count 1 after SET_PURGEABLE.
+ * Return: true if aligned, false on ioctl failure.
+ */
+bool PurgeableAshMem::AlignPinCount(int newFd, int targetCount)
+{
+    for (int i = 1; i < targetCount; i++) {
+        struct ashmem_pin pin = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
+        if (TEMP_FAILURE_RETRY(ioctl(newFd, ASHMEM_PIN, &pin)) < 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
+ * ReplacePurgeableMem: atomically swap the underlying ashmem region.
+ * The caller must be inside a Begin access section (old region pinned >= 1).
+ * The new region must have its content already built by the caller.
+ */
+bool PurgeableAshMem::ReplacePurgeableMem(size_t size, int newFd, void *newData,
+    std::unique_ptr<PurgeableMemBuilder> newBuilder)
+{
+    std::lock_guard<std::mutex> lock(dataLock_);
+    int oldPinCount = GetPinStatus();
+    if (!ValidateReplacePurgeableMem(size, newFd, newData, newBuilder)) {
+        return false;
+    }
+
+    /* probe the new fd: mark as purgeable (kernel sets count to 1) */
+    TEMP_FAILURE_RETRY(ioctl(newFd, ASHMEM_SET_PURGEABLE));
+    if (TEMP_FAILURE_RETRY(ioctl(newFd, ASHMEM_GET_PURGEABLE)) != 1) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark new fd fail, fd:%{public}d", __func__, newFd);
+        return false;
+    }
+
+    /* align the new fd's pin count to match the old. ashmem has no kernel
+     * disable ioctl, so on failure the new region stays at the default
+     * count — same state a failed ChangeAshmemData probe leaves behind */
+    if (!AlignPinCount(newFd, oldPinCount)) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: align pin count fail", __func__);
+        return false;
+    }
+
+    /*
+     * Commit: swap all internal state. The old fd is NOT closed — the
+     * caller retains ownership. buildDataCount_ is NOT reset — the new
+     * region's content is already built by the caller.
+     */
+    ashmemFd_ = newFd;
+    dataPtr_ = newData;
+    dataSizeInput_ = size;
+    isChange_ = true;
+    isSupport_ = true;
+    pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
+    builder_ = std::move(newBuilder);
+
+    PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, oldPin:%{public}d fd:%{public}d size:%{public}zu",
+        __func__, oldPinCount, ashmemFd_, dataSizeInput_);
     return true;
 }
 

@@ -488,6 +488,45 @@ HWTEST_F(PurgeableCppTest, ResizeDataTest, TestSize.Level1)
     pobj2 = nullptr;
 }
 
+/*
+ * ReplacePurgeableMemDefaultTest: the anonymous-page backend has no
+ * takeover support, so the base default implementation returns false
+ * and the object stays usable afterwards.
+ */
+HWTEST_F(PurgeableCppTest, ReplacePurgeableMemDefaultTest, TestSize.Level1)
+{
+    const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
+    std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
+    PurgeableMem pobj(27, std::move(builder));
+    int times = 0;
+    int ret = 1;
+    while (times++ < 10) {
+        if (pobj.BeginRead()) {
+            ret = strncmp(alphabet, static_cast<char *>(pobj.GetContent()), 26);
+            pobj.EndRead();
+            break;
+        }
+    }
+    EXPECT_EQ(ret, 0);
+
+    /* default impl: replace is not supported on anonymous pages */
+    std::unique_ptr<PurgeableMemBuilder> newBuilder = std::make_unique<TestDataBuilder>('A', 'Z');
+    EXPECT_FALSE(pobj.ReplacePurgeableMem(27, 0, nullptr, std::move(newBuilder)))
+        << "anonymous pages must not support replace";
+
+    /* object state unchanged, content still usable */
+    times = 0;
+    ret = 1;
+    while (times++ < 10) {
+        if (pobj.BeginRead()) {
+            ret = strncmp(alphabet, static_cast<char *>(pobj.GetContent()), 26);
+            pobj.EndRead();
+            break;
+        }
+    }
+    EXPECT_EQ(ret, 0);
+}
+
 void LoopPrintAlphabet(PurgeableMem *pdata, unsigned int loopCount)
 {
     std::cout << "inter " << __func__ << std::endl;

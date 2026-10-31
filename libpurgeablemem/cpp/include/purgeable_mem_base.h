@@ -114,6 +114,20 @@ public:
     virtual int DisablePurgeableKernel();
 
     /*
+     * ReplacePurgeableMem: swap the underlying buffer for a new one while
+     * the object holds an external buffer taken over via ChangeData.
+     * The caller must be inside a BeginRead/BeginWrite section (the old
+     * buffer pinned at least once), and the new buffer's content must
+     * already be built by the caller (with @newBuilder).
+     * The old fd is NOT closed — the caller retains ownership, and its
+     * kernel purgeable state and pin count are left as-is (frozen).
+     * Backends without takeover support (default impl) return false.
+     * Return:  true on success, false on failure (object state unchanged).
+     */
+    virtual bool ReplacePurgeableMem(size_t size, int newFd, void *newData,
+                                     std::unique_ptr<PurgeableMemBuilder> newBuilder);
+
+    /*
      * ModifyContentByBuilder: append a PurgeableMemBuilder obj to the PurgeableMem obj.
      * Input:   @modifier: unique_ptr of PurgeableMemBuilder, it will modify content of this obj.
      * Return:  modify result, true is success, while false is fail.
