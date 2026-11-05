@@ -517,7 +517,7 @@ static void DisableThenChangeCase()
 HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_SIZE;
     void *dataPtr = nullptr;
@@ -560,7 +560,7 @@ HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest002, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_SIZE;
     void *dataPtr = nullptr;
@@ -603,7 +603,7 @@ HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest002, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, CreatePurgeableDataTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
     PurgeableDmaBuf pobj(std::move(builder));
@@ -648,7 +648,7 @@ HWTEST_F(PurgeableDmaBufTest, CreatePurgeableDataTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, CreatePurgeableDataFallbackTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
     PurgeableDmaBuf pobj(std::move(builder));
@@ -664,7 +664,7 @@ HWTEST_F(PurgeableDmaBufTest, CreatePurgeableDataFallbackTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, MultiObjCreateTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -707,7 +707,7 @@ HWTEST_F(PurgeableDmaBufTest, MultiObjCreateTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, ResizeDataTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -744,7 +744,7 @@ HWTEST_F(PurgeableDmaBufTest, ResizeDataTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, ReadTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -773,7 +773,7 @@ HWTEST_F(PurgeableDmaBufTest, ReadTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, PurgeAndRebuildTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -813,7 +813,7 @@ HWTEST_F(PurgeableDmaBufTest, PurgeAndRebuildTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, DisablePurgeableTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     /* case 1: disable without purge, content keeps intact after reclaim */
     DisableWithoutPurgeCase();
@@ -828,7 +828,7 @@ HWTEST_F(PurgeableDmaBufTest, DisablePurgeableTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, WriteTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "CCCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -861,7 +861,7 @@ HWTEST_F(PurgeableDmaBufTest, WriteTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, MutiPageReadTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_CROSS_SIZE;
     char *alphabet = static_cast<char *>(malloc(size));
@@ -898,7 +898,7 @@ HWTEST_F(PurgeableDmaBufTest, MutiPageReadTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, MutiPageWriteTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_CROSS_SIZE;
     char *alphabet = static_cast<char *>(malloc(size));
@@ -940,7 +940,7 @@ HWTEST_F(PurgeableDmaBufTest, MutiPageWriteTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, MutiPageReadWriteTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = TWO_PAGE_SIZE;
     char *alphabet = static_cast<char *>(malloc(size));
@@ -985,7 +985,7 @@ HWTEST_F(PurgeableDmaBufTest, MutiPageReadWriteTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, MutiMorePageReadWriteTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = FIVE_MB_SIZE;
     char *alphabet = static_cast<char *>(malloc(size));
@@ -1030,7 +1030,7 @@ HWTEST_F(PurgeableDmaBufTest, MutiMorePageReadWriteTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, TakeOverDmaBufTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_SIZE;
     void *data = nullptr;
@@ -1084,7 +1084,7 @@ HWTEST_F(PurgeableDmaBufTest, TakeOverDmaBufTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, ChangeDmaBufDataTwiceTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_SIZE;
     void *data1 = nullptr;
@@ -1161,7 +1161,7 @@ static void ReplacePurgeableMemVerifyPurge(PurgeableDmaBuf *pobj, const char *al
 HWTEST_F(PurgeableDmaBufTest, ReplacePurgeableMemTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char oldData[] = "ZZZZZZZZZZZZZZZZZZZZZZZZZ";
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
@@ -1217,7 +1217,7 @@ HWTEST_F(PurgeableDmaBufTest, ReplacePurgeableMemTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, ReplacePurgeableMemInvalidTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_SIZE;
     void *data1 = nullptr;
@@ -1288,7 +1288,7 @@ HWTEST_F(PurgeableDmaBufTest, ReplacePurgeableMemInvalidTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, ChangeToNonPurgeableTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -1319,7 +1319,7 @@ HWTEST_F(PurgeableDmaBufTest, ChangeToNonPurgeableTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, PinReturnOneTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
@@ -1359,7 +1359,7 @@ HWTEST_F(PurgeableDmaBufTest, PinReturnOneTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, DestructorKeepExternalResourceTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = PAGE_SIZE;
     void *data = nullptr;
@@ -1390,7 +1390,7 @@ HWTEST_F(PurgeableDmaBufTest, DestructorKeepExternalResourceTest, TestSize.Level
 HWTEST_F(PurgeableDmaBufTest, IsPurgedTest, TestSize.Level1)
 {
     if (!IsPurgeableDmaSupported()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf";
     }
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<DmaTestDataBuilder>('A', 'Z');
     PurgeableDmaBuf pobj(std::move(builder));
@@ -1435,7 +1435,7 @@ HWTEST_F(PurgeableDmaBufTest, IsPurgedTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, InvalidInputTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     /* nullptr builder */
     PurgeableDmaBuf *pobj = new (std::nothrow) PurgeableDmaBuf(nullptr);
@@ -1481,7 +1481,7 @@ HWTEST_F(PurgeableDmaBufTest, InvalidInputTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, StableMutiPageReadWriteTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = TWO_PAGE_SIZE;
     char *alphabet = static_cast<char *>(malloc(size));
@@ -1529,7 +1529,7 @@ HWTEST_F(PurgeableDmaBufTest, StableMutiPageReadWriteTest, TestSize.Level1)
 HWTEST_F(PurgeableDmaBufTest, ConcurrentReadWriteTest, TestSize.Level1)
 {
     if (SkipDmabufTest()) {
-        return;
+        GTEST_SKIP() << "kernel does not support purgeable dma-buf or system dma heap";
     }
     size_t size = TWO_PAGE_SIZE;
     char *alphabet = static_cast<char *>(malloc(size));
