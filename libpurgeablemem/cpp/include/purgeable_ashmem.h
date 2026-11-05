@@ -50,13 +50,20 @@ public:
     PurgeableAshMem(std::unique_ptr<PurgeableMemBuilder> builder);
     ~PurgeableAshMem() override;
     int GetAshmemFd();
+    /*
+     * Resize the self-allocated ashmem region; the content is rebuilt by the
+     * builder during the resize, before the new region is marked purgeable.
+     * Regions taken over by ChangeAshmemData() cannot be resized.
+     */
     void ResizeData(size_t newSize) override;
     /*
-     * Allocate a new ashmem region and mark it as purgeable.
-     * SET_PURGEABLE sets the kernel default pin count to 1 (pinned).
-     * Calls Unpin() so the empty buffer can be reclaimed by the kernel
-     * until the first BeginRead/BeginWrite triggers BuildContent via builder.
-     * Does NOT increment buildDataCount_.
+     * Allocate a new ashmem region. The content is built by the builder
+     * BEFORE the region is marked purgeable, so the kernel SET_PURGEABLE
+     * records its baseline checksum over the real content.
+     * After Unpin() the region ends at kernel refcount 0: a standard
+     * purgeable object whose content is complete and reclaimable.
+     * The first BeginRead/BeginWrite hits the content directly without
+     * triggering a rebuild — unless the kernel has reclaimed it in between.
      * Rejected if the object already holds an external region taken over
      * via ChangeAshmemData (rebind is forbidden).
      */
@@ -92,6 +99,18 @@ private:
      * The caller must hold dataLock_.
      */
     bool CreatePurgeableDataUnlocked();
+    /*
+     * ValidateCreatePurgeableData: state validation for
+     * CreatePurgeableDataUnlocked. Return: true if the state is valid.
+     */
+    bool ValidateCreatePurgeableData();
+    /*
+     * BuildAndMarkPurgeable: build the content by builder BEFORE marking
+     * the region purgeable. Return: true on success; on failure the caller
+     * must release the region.
+     * The caller must hold dataLock_.
+     */
+    bool BuildAndMarkPurgeable();
 
     /*
      * ValidateReplacePurgeableMem: parameter and state validation for

@@ -51,11 +51,13 @@ public:
     int GetDmaBufFd() const;
 
     /*
-     * Allocate a new DMA buffer via libdmabufheap and mark it as purgeable.
-     * SET_PURGEABLE sets the kernel default pin count to 1 (pinned).
-     * Calls Unpin() so the empty buffer can be reclaimed by the kernel
-     * until the first BeginRead/BeginWrite triggers BuildContent via builder.
-     * Does NOT increment buildDataCount_.
+     * Allocate a new DMA buffer via libdmabufheap. The content is built by
+     * the builder BEFORE the buffer is marked purgeable, so the kernel
+     * SET_PURGEABLE records its baseline checksum over the real content.
+     * After Unpin() the buffer ends at kernel refcount 0: a standard
+     * purgeable object whose content is complete and reclaimable.
+     * The first BeginRead/BeginWrite hits the content directly without
+     * triggering a rebuild — unless the kernel has reclaimed it in between.
      * Rejected if the object already holds an external buffer taken over
      * via ChangeDmaBufData (rebind is forbidden — use ReplacePurgeableMem instead).
      *
@@ -93,9 +95,9 @@ public:
                              std::unique_ptr<PurgeableMemBuilder> newBuilder) override;
 
     /*
-     * Resize the self-allocated DMA buffer, the content will be rebuilt by
-     * builder at the next access. Buffers taken over by ChangeDmaBufData()
-     * cannot be resized.
+     * Resize the self-allocated DMA buffer; the content is rebuilt by the
+     * builder during the resize, before the new buffer is marked purgeable.
+     * Buffers taken over by ChangeDmaBufData() cannot be resized.
      */
     void ResizeData(size_t newSize) override;
     int DisablePurgeableKernel() override;
@@ -111,6 +113,19 @@ private:
      * The caller must hold dataLock_.
      */
     bool CreatePurgeableDataUnlocked(size_t size, const char *heapName);
+    /*
+     * ValidateCreatePurgeableData: parameter and state validation for
+     * CreatePurgeableDataUnlocked. Return: true if all parameters and
+     * state are valid.
+     */
+    bool ValidateCreatePurgeableData(size_t size, const char *heapName);
+    /*
+     * BuildAndMarkPurgeable: build the content by builder BEFORE marking
+     * the buffer purgeable. Return: true on success; on failure the caller
+     * must release the buffer and roll back the member state.
+     * The caller must hold dataLock_.
+     */
+    bool BuildAndMarkPurgeable();
     /*
      * TryRebuildAfterUnderflow: guard-style best-effort content recovery.
      * Each check is an early return. Return: true if content is present.
