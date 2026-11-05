@@ -293,7 +293,11 @@ int PurgeableDmaBuf::GetPinStatus() const
 
 void PurgeableDmaBuf::AfterRebuildSucc()
 {
-    TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_REBUILD_SUCCESS));
+    int ret = TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_REBUILD_SUCCESS));
+    if (ret < 0) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: ioctl fail, fd:%{public}d ino:%{public}lu ret:%{public}d",
+            __func__, dmaBufFd_, ino_, ret);
+    }
 }
 
 /* ReleaseSelfAllocatedBuffer: release the previous self-allocated buffer, if any. */
@@ -317,9 +321,13 @@ bool PurgeableDmaBuf::CreatePurgeableData(size_t size, const char *heapName)
     return CreatePurgeableDataUnlocked(size, heapName);
 }
 
-bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapName)
+/*
+ * ValidateCreatePurgeableData: parameter and state validation for
+ * CreatePurgeableDataUnlocked. Return: true if all parameters and state
+ * are valid.
+ */
+bool PurgeableDmaBuf::ValidateCreatePurgeableData(size_t size, const char *heapName)
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     if (size == 0 || size >= OHOS_MAXIMUM_PURGEABLE_MEMORY) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: invalid size %{public}zu", __func__, size);
         return false;
@@ -328,7 +336,6 @@ bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapN
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: input heapName nullptr", __func__);
         return false;
     }
-
     /* reject if permanently disabled */
     if (disabled_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: object disabled", __func__);
@@ -337,6 +344,37 @@ bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapN
     /* reject rebind: the object already holds an external buffer */
     if (isChange_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: already in change state, rebind forbidden", __func__);
+        return false;
+    }
+    return true;
+}
+
+/*
+ * BuildAndMarkPurgeable: build the content by builder BEFORE marking the
+ * buffer purgeable, so the kernel SET records its baseline checksum over
+ * the real content. Return: true on success; on failure the caller must
+ * release the buffer and roll back the member state.
+ * The caller must hold dataLock_.
+ */
+bool PurgeableDmaBuf::BuildAndMarkPurgeable()
+{
+    if (builder_ != nullptr && !BuildContent()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: build content fail, release buffer", __func__);
+        return false;
+    }
+    /* mark as purgeable; the kernel does not support it if this fails */
+    isSupport_ = MarkDmaBufPurgeable(dmaBufFd_);
+    if (!isSupport_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release buffer", __func__);
+        return false;
+    }
+    return true;
+}
+
+bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapName)
+{
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
+    if (!ValidateCreatePurgeableData(size, heapName)) {
         return false;
     }
 
@@ -353,23 +391,21 @@ bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapN
         return false;
     }
 
-    /* mark as purgeable; release the buffer if the kernel does not support it */
-    isSupport_ = MarkDmaBufPurgeable(static_cast<int>(buffer.fd));
-    if (!isSupport_) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release buffer", __func__);
-        DmabufHeapBufferFree(&buffer);
-        munmap(data, size);
-        return false;
-    }
-
     dataSizeInput_ = size;
     dmaBufFd_ = static_cast<int>(buffer.fd);
     pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
     dataPtr_ = data;
     isChange_ = false;
-    /* new empty buffer, the first access rebuilds it by builder */
-    buildDataCount_ = 0;
-    /* empty buffer: unpin so the kernel can reclaim it until first access */
+    /* build the content and mark purgeable; roll back the state on failure */
+    if (!BuildAndMarkPurgeable()) {
+        DmabufHeapBufferFree(&buffer);
+        munmap(data, size);
+        dataPtr_ = nullptr;
+        dmaBufFd_ = -1;
+        dataSizeInput_ = 0;
+        return false;
+    }
+    /* content built: unpin so the kernel can reclaim it (refcount 0) */
     Unpin();
     /* Cache ino once — stable for the lifetime of the dma-buf fd */
     ino_ = QueryDmaBufIno(dmaBufFd_);

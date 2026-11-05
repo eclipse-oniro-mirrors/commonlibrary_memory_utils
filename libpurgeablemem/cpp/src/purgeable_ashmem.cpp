@@ -68,12 +68,14 @@ PurgeableAshMem::PurgeableAshMem(size_t dataSize, std::unique_ptr<PurgeableMemBu
     }
     dataSizeInput_ = dataSize;
     IF_NULL_LOG_ACTION(builder, "%{public}s: input builder nullptr", return);
+    /* builder_ must be set BEFORE CreatePurgeableData — the create path
+     * builds the content by builder before marking the region purgeable */
+    builder_ = std::move(builder);
 
     if (!CreatePurgeableData()) {
         PM_HILOG_DEBUG(LOG_CORE, "Failed to create purgeabledata");
         return;
     }
-    builder_ = std::move(builder);
     PM_HILOG_DEBUG(LOG_CORE, "%{public}s init succ. %{public}s", __func__, ToString().c_str());
 }
 
@@ -140,9 +142,12 @@ bool PurgeableAshMem::CreatePurgeableData()
     return CreatePurgeableDataUnlocked();
 }
 
-bool PurgeableAshMem::CreatePurgeableDataUnlocked()
+/*
+ * ValidateCreatePurgeableData: state validation for
+ * CreatePurgeableDataUnlocked. Return: true if the state is valid.
+ */
+bool PurgeableAshMem::ValidateCreatePurgeableData()
 {
-    PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
     if (dataSizeInput_ == 0) {
         return false;
     }
@@ -154,6 +159,38 @@ bool PurgeableAshMem::CreatePurgeableDataUnlocked()
     /* reject rebind: the object already holds an external region */
     if (isChange_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: already in change state, rebind forbidden", __func__);
+        return false;
+    }
+    return true;
+}
+
+/*
+ * BuildAndMarkPurgeable: build the content by builder BEFORE marking the
+ * region purgeable, so the kernel SET records its baseline checksum over
+ * the real content. Return: true on success; on failure the caller must
+ * release the region.
+ * The caller must hold dataLock_.
+ */
+bool PurgeableAshMem::BuildAndMarkPurgeable()
+{
+    if (builder_ != nullptr && !BuildContent()) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: build content fail, release region", __func__);
+        return false;
+    }
+    /* mark as purgeable; the kernel does not support it if this fails */
+    TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_SET_PURGEABLE));
+    isSupport_ = (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1);
+    if (!isSupport_) {
+        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release region", __func__);
+        return false;
+    }
+    return true;
+}
+
+bool PurgeableAshMem::CreatePurgeableDataUnlocked()
+{
+    PM_HILOG_DEBUG(LOG_CORE, "%{public}s", __func__);
+    if (!ValidateCreatePurgeableData()) {
         return false;
     }
     /* release the previous self-allocated ashmem region, if any */
@@ -175,19 +212,15 @@ bool PurgeableAshMem::CreatePurgeableDataUnlocked()
     dataPtr_ = data;
     pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
     isChange_ = false;
-    /* new empty region, the first access rebuilds it by builder */
-    buildDataCount_ = 0;
-    /* mark as purgeable; release the region if the kernel does not support it */
-    TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_SET_PURGEABLE));
-    isSupport_ = (TEMP_FAILURE_RETRY(ioctl(ashmemFd_, ASHMEM_GET_PURGEABLE)) == 1);
-    if (!isSupport_) {
-        PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release region", __func__);
+    /* build the content and mark purgeable; release the region on failure */
+    if (!BuildAndMarkPurgeable()) {
         munmap(dataPtr_, size);
         dataPtr_ = nullptr;
         close(ashmemFd_);
         ashmemFd_ = -1;
         return false;
     }
+    /* content built: unpin so the kernel can reclaim it (refcount 0) */
     Unpin();
     return true;
 }
