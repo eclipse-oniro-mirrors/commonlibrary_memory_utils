@@ -43,6 +43,26 @@ using namespace testing::ext;
 static constexpr int PRINT_INTERVAL_SECONDS = 1;
 static constexpr int RECLAIM_INTERVAL_SECONDS = 1;
 static constexpr int MODIFY_INTERVAL_SECONDS = 2;
+
+static bool IsPurgeableAshmemSupported()
+{
+    constexpr size_t probeSize = 4096;
+    int fd = AshmemCreate("PurgeableAshmemCapabilityProbe", probeSize);
+    if (fd < 0) {
+        return false;
+    }
+
+    bool supported = false;
+    if (AshmemSetProt(fd, PROT_READ | PROT_WRITE) == 0 &&
+        ioctl(fd, ASHMEM_SET_PURGEABLE) == 0 &&
+        ioctl(fd, ASHMEM_GET_PURGEABLE) == 1) {
+        supported = true;
+    }
+
+    close(fd);
+    return supported;
+}
+
 void LoopPrintAlphabet(PurgeableAshMem *pdata, unsigned int loopCount);
 bool ReclaimPurgeable(void);
 void LoopReclaimPurgeable(unsigned int loopCount);
@@ -167,6 +187,10 @@ void PurgeableAshmemTest::TearDown()
 
 HWTEST_F(PurgeableAshmemTest, KernelInterfaceTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     size_t size = 4096 * 100;
     int fd = AshmemCreate("Purgeable Ashmem", size);
     ASSERT_GT(fd, 0);
@@ -216,6 +240,10 @@ HWTEST_F(PurgeableAshmemTest, KernelInterfaceTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, MultiObjCreateTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     const char alphabetFinal[] = "BBCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
     std::unique_ptr<PurgeableMemBuilder> builder2 = std::make_unique<TestDataBuilder>('A', 'Z');
@@ -264,6 +292,10 @@ HWTEST_F(PurgeableAshmemTest, MultiObjCreateTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, ReadTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
@@ -289,6 +321,10 @@ HWTEST_F(PurgeableAshmemTest, ReadTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, WriteTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     const char alphabet[] = "CCCDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
@@ -319,6 +355,10 @@ HWTEST_F(PurgeableAshmemTest, WriteTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, ReadWriteTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     const char alphabet[] = "DDDDEFGHIJKLMNOPQRSTUVWXYZ\0";
     std::unique_ptr<PurgeableMemBuilder> builder = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem *pobj = new (std::nothrow) PurgeableAshMem(27, std::move(builder));
@@ -353,6 +393,10 @@ HWTEST_F(PurgeableAshmemTest, ReadWriteTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, MutiPageReadTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     char alphabet[4098];
     size_t len = 0;
     for (char ch = 'A'; len < 4098;) {
@@ -384,6 +428,10 @@ HWTEST_F(PurgeableAshmemTest, MutiPageReadTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, MutiPageWriteTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     char alphabet[4098];
     size_t len = 0;
     for (char ch = 'C'; len < 4098;) {
@@ -420,6 +468,10 @@ HWTEST_F(PurgeableAshmemTest, MutiPageWriteTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, MutiPageReadWriteTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     char alphabet[4098];
     size_t len = 0;
     for (char ch = 'D'; len < 4098;) {
@@ -458,6 +510,10 @@ HWTEST_F(PurgeableAshmemTest, MutiPageReadWriteTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, MutiMorePageReadWriteTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     size_t size = 5 * 1024 * 1024;
     char *alphabet = static_cast<char *>(malloc(size));
     size_t len = 0;
@@ -500,6 +556,10 @@ HWTEST_F(PurgeableAshmemTest, MutiMorePageReadWriteTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, StableMutiMorePageReadWriteTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     size_t size = 5 * 1024 * 1024;
     char *alphabet = static_cast<char *>(malloc(size));
     size_t len = 0;
@@ -571,6 +631,10 @@ HWTEST_F(PurgeableAshmemTest, InvalidInputBuilderTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, IsPurgedTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
     std::unique_ptr<PurgeableMemBuilder> modA2B = std::make_unique<TestDataModifier>('A', 'B');
     PurgeableAshMem pobj(27, std::move(builder1));
@@ -609,6 +673,10 @@ HWTEST_F(PurgeableAshmemTest, GetPinStatusTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem pobj1(27, std::move(builder1));
     PurgeableAshMem pobj2(27, std::move(builder1));
@@ -655,6 +723,10 @@ HWTEST_F(PurgeableAshmemTest, ChangeAshmemDataTest, TestSize.Level1)
  */
 HWTEST_F(PurgeableAshmemTest, ReplacePurgeableMemTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     const char oldData[] = "ZZZZZZZZZZZZZZZZZZZZZZZZZ";
     size_t size = PAGE_SIZE;
     int oldFd = AshmemCreate("PurgeableAshmemReplaceOld", size);
@@ -725,6 +797,10 @@ HWTEST_F(PurgeableAshmemTest, ReplacePurgeableMemTest, TestSize.Level1)
  */
 HWTEST_F(PurgeableAshmemTest, ReplacePurgeableMemInvalidTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     size_t size = PAGE_SIZE;
     int fd1 = AshmemCreate("PurgeableAshmemReplaceInv1", size);
     int fd2 = AshmemCreate("PurgeableAshmemReplaceInv2", size);
@@ -772,6 +848,10 @@ HWTEST_F(PurgeableAshmemTest, ReplacePurgeableMemInvalidTest, TestSize.Level1)
 
 HWTEST_F(PurgeableAshmemTest, GetContentSizeTest, TestSize.Level1)
 {
+    if (!IsPurgeableAshmemSupported()) {
+        GTEST_SKIP() << "kernel does not support purgeable ashmem";
+    }
+
     std::unique_ptr<PurgeableMemBuilder> builder1 = std::make_unique<TestDataBuilder>('A', 'Z');
     PurgeableAshMem pobj(27, std::move(builder1));
     EXPECT_EQ(pobj.GetContentSize(), 27);

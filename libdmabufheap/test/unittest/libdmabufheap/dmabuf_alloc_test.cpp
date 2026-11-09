@@ -35,6 +35,24 @@ using namespace testing::ext;
 namespace {
 const int BUFFER_SIZE = 128;
 
+static bool IsDmaHeapOwnerFlagSupported(const std::string &heapName)
+{
+    int heapFd = DmabufHeapOpen(heapName.c_str());
+    if (heapFd < 0) {
+        return false;
+    }
+
+    DmabufHeapBuffer buffer = { .size = BUFFER_SIZE, .heapFlags = 0 };
+    SetOwnerIdForHeapFlags(&buffer, DMA_OWNER_MEDIA_CODEC);
+
+    bool supported = DmabufHeapBufferAlloc(heapFd, &buffer) == 0;
+    if (supported) {
+        DmabufHeapBufferFree(&buffer);
+    }
+    DmabufHeapClose(heapFd);
+    return supported;
+}
+
 class DmabufAllocTest : public testing::Test {
 public:
     static void SetUpTestCase();
@@ -77,7 +95,12 @@ void DmabufAllocTest::TearDown()
 
 HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
+    if (!IsDmaHeapOwnerFlagSupported(heapName)) {
+        GTEST_SKIP() << "kernel dma heap does not support owner flags";
+    }
 
     int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
@@ -112,7 +135,9 @@ HWTEST_F(DmabufAllocTest, AllocSingleBuffer, TestSize.Level1)
 
 HWTEST_F(DmabufAllocTest, ShareBufferBetweenProcess, Function|MediumTest|Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
 
     int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
@@ -182,7 +207,9 @@ HWTEST_F(DmabufAllocTest, OpenInvalidNameHeap, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, AllocInvalidSizeBuffer, Function|MediumTest|Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
 
     int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
@@ -195,7 +222,9 @@ HWTEST_F(DmabufAllocTest, AllocInvalidSizeBuffer, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, BufferSyncWithWrongFd, Function|MediumTest|Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
 
     const unsigned int WRONG_FD = UINT_MAX;
 
@@ -221,7 +250,9 @@ HWTEST_F(DmabufAllocTest, BufferSyncWithWrongFd, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, BufferSyncWithWrongSyncType, Function|MediumTest|Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
 
     const unsigned int WRONG_SYNC_TYPE = UINT_MAX;
 
@@ -247,7 +278,9 @@ HWTEST_F(DmabufAllocTest, BufferSyncWithWrongSyncType, Function|MediumTest|Level
 
 HWTEST_F(DmabufAllocTest, SyncBufferTwice, Function|MediumTest|Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
 
     int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
@@ -279,7 +312,9 @@ HWTEST_F(DmabufAllocTest, SyncBufferTwice, Function|MediumTest|Level1)
 
 HWTEST_F(DmabufAllocTest, ExchangeBufferSyncOrder, Function|MediumTest|Level1)
 {
-    ASSERT_STRNE(heapName.c_str(), "");
+    if (heapName.empty()) {
+        GTEST_SKIP() << "no system dma heap";
+    }
 
     int heapFd = DmabufHeapOpen(heapName.c_str());
     ASSERT_GE(heapFd, 0);
