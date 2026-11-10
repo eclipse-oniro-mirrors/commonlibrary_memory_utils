@@ -36,6 +36,7 @@ using namespace OHOS::HDI::Memorytracker::V1_0;
 constexpr int PAGE_TO_KB = 4;
 constexpr int BYTE_PER_KB = 1024;
 constexpr int64_t ERROR_DMA_OPEN_SO = -1;
+constexpr int LINE_BUF_SIZE = 128;
 
 // get deduplicated DMA information
 std::vector<DmaNodeInfoWrapper> GetDmaInfo(int pid)
@@ -136,14 +137,15 @@ uint64_t GetPssByPid(const int pid)
 {
     uint64_t size = 0;
     std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
-    std::ifstream in(filename);
-    if (!in) {
+    FILE *fp = fopen(filename.c_str(), "r");
+    if (fp == nullptr) {
         HILOG_ERROR(LOG_CORE, "File %{public}s not found.\n", filename.c_str());
         return size;
     }
 
-    std::string content;
-    while (in.good() && getline(in, content)) {
+    char buf[LINE_BUF_SIZE] = {0};
+    while (fgets(buf, LINE_BUF_SIZE, fp) != nullptr) {
+        std::string content(buf);
         std::string::size_type typePos = content.find(":");
         if (typePos != content.npos) {
             std::string type = content.substr(0, typePos);
@@ -155,7 +157,9 @@ uint64_t GetPssByPid(const int pid)
             }
         }
     }
-    in.close();
+    if (fclose(fp) != 0) {
+        HILOG_ERROR(LOG_CORE, "Failed to close %{public}s.\n", filename.c_str());
+    }
     return size;
 }
 
@@ -164,14 +168,15 @@ uint64_t GetSwapPssByPid(const int pid)
 {
     uint64_t size = 0;
     std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
-    std::ifstream in(filename);
-    if (!in) {
+    FILE *fp = fopen(filename.c_str(), "r");
+    if (fp == nullptr) {
         HILOG_ERROR(LOG_CORE, "File %{public}s not found.\n", filename.c_str());
         return size;
     }
 
-    std::string content;
-    while (in.good() && getline(in, content)) {
+    char buf[LINE_BUF_SIZE] = {0};
+    while (fgets(buf, LINE_BUF_SIZE, fp) != nullptr) {
+        std::string content(buf);
         std::string::size_type typePos = content.find(":");
         if (typePos != content.npos) {
             std::string type = content.substr(0, typePos);
@@ -183,7 +188,9 @@ uint64_t GetSwapPssByPid(const int pid)
             }
         }
     }
-    in.close();
+    if (fclose(fp) != 0) {
+        HILOG_ERROR(LOG_CORE, "Failed to close %{public}s.\n", filename.c_str());
+    }
     return size;
 }
 
@@ -192,14 +199,15 @@ uint64_t GetPssAndSwapPssByPid(const int pid)
 {
     uint64_t size = 0;
     std::string filename = "/proc/" + std::to_string(pid) + "/smaps_rollup";
-    std::ifstream in(filename);
-    if (!in) {
+    FILE *fp = fopen(filename.c_str(), "r");
+    if (fp == nullptr) {
         HILOG_ERROR(LOG_CORE, "File %{public}s not found.\n", filename.c_str());
         return size;
     }
 
-    std::string content;
-    while (in.good() && getline(in, content)) {
+    char buf[LINE_BUF_SIZE] = {0};
+    while (fgets(buf, LINE_BUF_SIZE, fp) != nullptr) {
+        std::string content(buf);
         std::string::size_type typePos = content.find(":");
         if (typePos != content.npos) {
             std::string type = content.substr(0, typePos);
@@ -210,7 +218,9 @@ uint64_t GetPssAndSwapPssByPid(const int pid)
             }
         }
     }
-    in.close();
+    if (fclose(fp) != 0) {
+        HILOG_ERROR(LOG_CORE, "Failed to close %{public}s.\n", filename.c_str());
+    }
     return size;
 }
 
