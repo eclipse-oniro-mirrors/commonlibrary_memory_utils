@@ -198,6 +198,13 @@ protected:
      */
     bool BeginReadUnlocked();
     virtual bool Unpin();
+    /*
+     * IsPurged: whether the content has been purged. The semantics depend
+     * on the backend type — PurgeableAshMem queries the kernel in real time;
+     * PurgeableDmaBuf returns a recently cached snapshot of the last PIN
+     * ioctl return, which is only guaranteed not to be stale within a pin
+     * window (i.e. called after Pin() and before the paired Unpin()).
+     */
     virtual bool IsPurged();
     virtual void AfterRebuildSucc();
     virtual std::string ToString() const;

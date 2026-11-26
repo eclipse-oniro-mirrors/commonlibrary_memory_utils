@@ -155,14 +155,31 @@ private:
 protected:
     int dmaBufFd_ = -1;
     bool isChange_ = false;
-    unsigned long ino_ = 0;  /* cached dmabuf inode, queried once at create/change */
+    /* ino returned by the SET_PURGEABLE ioctl, cached at create/change */
+    unsigned long ino_ = 0;
     struct DmaBufPurgeablePin pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
+    /*
+     * wasPurged_: snapshot of the last PIN ioctl return — true when the
+     * buffer was purged before that pin (PIN return > 0). It replaces the
+     * removed DMA_BUF_PURGEABLE_IS_PURGED ioctl, and is cleared by
+     * AfterRebuildSucc() once the kernel accepts the rebuild.
+     */
+    bool wasPurged_ = false;
 
     /* ReleaseSelfAllocatedBuffer: release the previous self-allocated buffer, if any. */
     void ReleaseSelfAllocatedBuffer();
 
     bool Pin() override;
     bool Unpin() override;
+    /*
+     * IsPurged: whether the content has been purged. Unlike the ashmem
+     * backend, which queries the kernel in real time, this returns a
+     * cached snapshot of the last PIN ioctl return (the IS_PURGED ioctl
+     * was removed) — the value is only guaranteed not to be stale within
+     * a pin window, i.e. it must be called after Pin() and before the
+     * paired Unpin(). Cleared by AfterRebuildSucc() once the kernel
+     * accepts the rebuild.
+     */
     bool IsPurged() override;
     void AfterRebuildSucc() override;
     std::string ToString() const override;
