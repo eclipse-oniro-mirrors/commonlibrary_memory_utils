@@ -103,21 +103,25 @@ static bool AllocAndMapDmaBuffer(int heapFd, size_t size, DmabufHeapBuffer *buff
     return true;
 }
 
-/* MarkDmaBufPurgeable: set the DMA buffer purgeable, return whether the kernel supports it. */
-static bool MarkDmaBufPurgeable(int dmabufFd)
+/*
+ * MarkDmaBufPurgeable: enable the purgeable feature of the DMA buffer
+ * (SET_PURGEABLE with MODE_DISCARD), then verify it via GET_PURGEABLE.
+ * On success @ino receives the dmabuf internal inode number returned by
+ * the kernel (positive, for dfx caching); it is left untouched on failure.
+ * Return: whether the buffer is purgeable now.
+ */
+static bool MarkDmaBufPurgeable(int dmabufFd, unsigned long *ino)
 {
-    TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_SET_PURGEABLE));
-    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_GET_PURGEABLE)) == PURGEABLE_DMA_BUF_PURGEABLE;
-}
-
-/* QueryDmaBufIno: query the dmabuf internal inode number, 0 on failure. */
-static unsigned long QueryDmaBufIno(int dmabufFd)
-{
-    struct DmaBufPurgeableIno inoInfo = {};
-    if (TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_PURGEABLE_GET_INO, &inoInfo)) != 0) {
-        return 0;
+    __u32 mode = PURGEABLE_DMA_BUF_MODE_DISCARD;
+    int ret = TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_SET_PURGEABLE, &mode));
+    if (ret < 0) {
+        return false;
     }
-    return static_cast<unsigned long>(inoInfo.ino);
+    if (ino != nullptr) {
+        /* the positive return of SET is the dmabuf internal inode number */
+        *ino = static_cast<unsigned long>(ret);
+    }
+    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_GET_PURGEABLE)) == PURGEABLE_DMA_BUF_MODE_DISCARD;
 }
 
 PurgeableDmaBuf::PurgeableDmaBuf(std::unique_ptr<PurgeableMemBuilder> builder)
@@ -168,8 +172,8 @@ int PurgeableDmaBuf::GetDmaBufFd() const
  * and Pin still returns true — the buffer just lost its purgeable status,
  * so the content is inherently protected from now on.
  * PIN ioctl return values: <0 = failure (disable fallback), 0 = success
- * (not purged), 1 = success (was purged, rebuild needed — handled by
- * IsPurged(), not by Pin's return value).
+ * (not purged), 1 = success (was purged) — the snapshot is recorded in
+ * wasPurged_ and read by IsPurged() (the IS_PURGED ioctl was removed).
  */
 bool PurgeableDmaBuf::Pin()
 {
@@ -187,7 +191,9 @@ bool PurgeableDmaBuf::Pin()
         disabled_ = true;
         isSupport_ = false;
         (void)DisablePurgeableKernel();
+        return true;
     }
+    wasPurged_ = (ret > 0);
     return true;
 }
 
@@ -274,13 +280,17 @@ bool PurgeableDmaBuf::Unpin()
     return true;
 }
 
+/*
+ * IsPurged: whether the content was purged, reported by the snapshot of
+ * the last PIN ioctl return — see the pin-window contract in the header
+ * (purgeable_dmabuf.h). The IS_PURGED ioctl was removed.
+ */
 bool PurgeableDmaBuf::IsPurged()
 {
     if (!isSupport_) {
         return false;
     }
-    int ret = TEMP_FAILURE_RETRY(ioctl(dmaBufFd_, DMA_BUF_PURGEABLE_IS_PURGED));
-    return ret > 0 ? true : false;
+    return wasPurged_;
 }
 
 int PurgeableDmaBuf::GetPinStatus() const
@@ -297,7 +307,10 @@ void PurgeableDmaBuf::AfterRebuildSucc()
     if (ret < 0) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: ioctl fail, fd:%{public}d ino:%{public}lu ret:%{public}d",
             __func__, dmaBufFd_, ino_, ret);
+        return;
     }
+    /* rebuild accepted: clear the purged snapshot */
+    wasPurged_ = false;
 }
 
 /* ReleaseSelfAllocatedBuffer: release the previous self-allocated buffer, if any. */
@@ -352,8 +365,9 @@ bool PurgeableDmaBuf::ValidateCreatePurgeableData(size_t size, const char *heapN
 /*
  * BuildAndMarkPurgeable: build the content by builder BEFORE marking the
  * buffer purgeable, so the kernel SET records its baseline checksum over
- * the real content. Return: true on success; on failure the caller must
- * release the buffer and roll back the member state.
+ * the real content. The SET return (dmabuf inode) is cached in ino_.
+ * Return: true on success; on failure the caller must release the buffer
+ * and roll back the member state.
  * The caller must hold dataLock_.
  */
 bool PurgeableDmaBuf::BuildAndMarkPurgeable()
@@ -363,7 +377,7 @@ bool PurgeableDmaBuf::BuildAndMarkPurgeable()
         return false;
     }
     /* mark as purgeable; the kernel does not support it if this fails */
-    isSupport_ = MarkDmaBufPurgeable(dmaBufFd_);
+    isSupport_ = MarkDmaBufPurgeable(dmaBufFd_, &ino_);
     if (!isSupport_) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, release buffer", __func__);
         return false;
@@ -407,8 +421,6 @@ bool PurgeableDmaBuf::CreatePurgeableDataUnlocked(size_t size, const char *heapN
     }
     /* content built: unpin so the kernel can reclaim it (refcount 0) */
     Unpin();
-    /* Cache ino once — stable for the lifetime of the dma-buf fd */
-    ino_ = QueryDmaBufIno(dmaBufFd_);
     return true;
 }
 
@@ -446,8 +458,10 @@ bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
     /*
      * Probe the new fd before committing: mark it as purgeable first,
      * so a failure leaves the object and the caller's buffer untouched.
+     * The SET return (dmabuf inode) is committed only on success.
      */
-    if (!MarkDmaBufPurgeable(fd)) {
+    unsigned long newIno = 0;
+    if (!MarkDmaBufPurgeable(fd, &newIno)) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark purgeable fail, fd:%{public}d", __func__, fd);
         return false;
     }
@@ -460,8 +474,8 @@ bool PurgeableDmaBuf::ChangeDmaBufData(size_t size, int fd, void *data)
     buildDataCount_++;
     isChange_ = true;
     isSupport_ = true;
-    /* Cache ino once — stable for the lifetime of the dma-buf fd */
-    ino_ = QueryDmaBufIno(dmaBufFd_);
+    /* ino returned by the SET_PURGEABLE probe, stable for the fd lifetime */
+    ino_ = newIno;
 
     PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, fd:%{public}d ino:%{public}lu size:%{public}zu",
                   __func__, dmaBufFd_, ino_, dataSizeInput_);
@@ -552,7 +566,8 @@ bool PurgeableDmaBuf::ReplacePurgeableMem(size_t size, int newFd, void *newData,
     }
 
     /* probe the new fd: mark as purgeable (kernel sets count to 1) */
-    if (!MarkDmaBufPurgeable(newFd)) {
+    unsigned long newIno = 0;
+    if (!MarkDmaBufPurgeable(newFd, &newIno)) {
         PM_HILOG_ERROR(LOG_CORE, "%{public}s: mark new fd fail, fd:%{public}d", __func__, newFd);
         return false;
     }
@@ -576,7 +591,8 @@ bool PurgeableDmaBuf::ReplacePurgeableMem(size_t size, int newFd, void *newData,
     isSupport_ = true;
     pin_ = { static_cast<uint32_t>(0), static_cast<uint32_t>(0) };
     builder_ = std::move(newBuilder);
-    ino_ = QueryDmaBufIno(dmaBufFd_);
+    /* ino returned by the SET_PURGEABLE probe, stable for the fd lifetime */
+    ino_ = newIno;
 
     PM_HILOG_INFO(LOG_CORE, "%{public}s: succ, oldPin:%{public}d fd:%{public}d ino:%{public}lu size:%{public}zu",
         __func__, oldPinCount, dmaBufFd_, ino_, dataSizeInput_);

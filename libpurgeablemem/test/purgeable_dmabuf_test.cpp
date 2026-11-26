@@ -330,8 +330,9 @@ static void KernelCheckPinCounting(int fd)
 
 /*
  * KernelPurgeAndRebuild: one purge-rebuild cycle of the ioctl state machine —
- * UNPIN to count 0, trigger the purge, PIN returns WAS_PURGED, the purged
- * pages read as zeros, rewrite @rebuilt, REBUILD_SUCCESS clears the flag.
+ * UNPIN to count 0, trigger the purge, PIN returns WAS_PURGED (this return
+ * is the purged snapshot, the IS_PURGED ioctl was removed), the purged
+ * pages read as zeros, rewrite @rebuilt, REBUILD_SUCCESS clears the state.
  */
 static void KernelPurgeAndRebuild(int fd, char *str, size_t size, char rebuilt, int round)
 {
@@ -339,19 +340,16 @@ static void KernelPurgeAndRebuild(int fd, char *str, size_t size, char rebuilt, 
     EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_UNPIN, &pin), 0) << "round " << round;
     EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PIN_STATUS), PIN_COUNT_RELEASED) << "round " << round;
     ReclaimPurgeableDma();
-    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_IS_PURGED), 1) << "round " << round;
     /* pin reports WAS_PURGED, page fault provides zeroed pages */
     EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_PIN, &pin), DMA_BUF_PURGEABLE_WAS_PURGED) << "round " << round;
     EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PIN_STATUS), PIN_COUNT_DEFAULT) << "round " << round;
-    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_IS_PURGED), 1) << "round " << round;
     EXPECT_TRUE(CheckAllBytes(str, size, 0)) << "round " << round;
-    /* rebuild: rewrite content, purged flag clears */
+    /* rebuild: rewrite content, REBUILD_SUCCESS clears the purged state */
     for (size_t i = 0; i < size; i++) {
         str[i] = rebuilt;
     }
     str[size - 1] = '\0';
     EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_REBUILD_SUCCESS), 0) << "round " << round;
-    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_IS_PURGED), 0) << "round " << round;
     EXPECT_TRUE(CheckAllBytes(str, size - 1, rebuilt)) << "round " << round;
 }
 
@@ -532,13 +530,16 @@ HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest, TestSize.Level1)
     str[size - 1] = '\0';
 
     struct DmaBufPurgeablePin pin = { 0, 0 };
-    if (ioctl(fd, DMA_BUF_SET_PURGEABLE) != 0) {
+    __u32 mode = PURGEABLE_DMA_BUF_MODE_DISCARD;
+    int setRet = ioctl(fd, DMA_BUF_SET_PURGEABLE, &mode);
+    if (setRet < 0) {
         std::cout << __func__ << ": kernel not support purgeable dma-buf ioctl, skip" << std::endl;
         FreeDmaBuf(dataPtr, size, heapFd, &buffer);
         return;
     }
-    /* SET_PURGEABLE succeeded, default pin count is 1 */
-    EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PURGEABLE), 1);
+    /* SET succeeds and returns the dmabuf ino (positive); default pin count is 1 */
+    EXPECT_GT(setRet, 0);
+    EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PURGEABLE), PURGEABLE_DMA_BUF_MODE_DISCARD);
     KernelCheckPinCounting(fd);
     /* reclaim-dependent assertions below need the kernel trigger interface */
     if (!ReclaimPurgeableDma()) {
@@ -546,8 +547,11 @@ HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest, TestSize.Level1)
         FreeDmaBuf(dataPtr, size, heapFd, &buffer);
         return;
     }
-    /* pinned (count 1): reclaim does not purge it */
-    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_IS_PURGED), 0);
+    /* pinned (count 1): reclaim does not purge it — an extra PIN must not
+     * report WAS_PURGED (the purged state is read from the PIN return now) */
+    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_PIN, &pin), 0);
+    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_UNPIN, &pin), 0);
+    EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PIN_STATUS), PIN_COUNT_DEFAULT);
     /* single purge-rebuild cycle: UNPIN triggers the purge, PIN returns
      * WAS_PURGED, page fault reads zeros, rebuild clears the purged flag */
     KernelPurgeAndRebuild(fd, str, size, 'b', 0);
@@ -574,13 +578,13 @@ HWTEST_F(PurgeableDmaBufTest, KernelInterfaceTest002, TestSize.Level1)
     }
     str[size - 1] = '\0';
     struct DmaBufPurgeablePin pin = { 0, 0 };
-    if (ioctl(fd, DMA_BUF_SET_PURGEABLE) != 0) {
+    __u32 mode = PURGEABLE_DMA_BUF_MODE_DISCARD;
+    if (ioctl(fd, DMA_BUF_SET_PURGEABLE, &mode) < 0) {
         std::cout << __func__ << ": kernel not support purgeable dma-buf ioctl, skip" << std::endl;
         FreeDmaBuf(dataPtr, size, heapFd, &buffer);
         return;
     }
-    EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PURGEABLE), 1);
-    EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_IS_PURGED), 0);
+    EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PURGEABLE), PURGEABLE_DMA_BUF_MODE_DISCARD);
     /* the purge/rebuild rounds below need the kernel trigger interface */
     if (!ReclaimPurgeableDma()) {
         std::cout << __func__ << ": purgeable_dmabuf_trigger not available, skip" << std::endl;
@@ -1058,9 +1062,12 @@ HWTEST_F(PurgeableDmaBufTest, TakeOverDmaBufTest, TestSize.Level1)
     EXPECT_EQ(pobj.GetContentSize(), static_cast<size_t>(ALPHABET_BUF_SIZE));
     if (pobj.isSupport_) {
         EXPECT_GT(pobj.GetIno(), static_cast<unsigned long>(0));
-        EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PURGEABLE), 1);
-        /* takeover keeps the buffer pinned, it is not purged */
-        EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_IS_PURGED), 0);
+        EXPECT_EQ(ioctl(fd, DMA_BUF_GET_PURGEABLE), PURGEABLE_DMA_BUF_MODE_DISCARD);
+        /* takeover keeps the buffer pinned: an extra PIN does not report
+         * WAS_PURGED (the purged state is read from the PIN return now) */
+        struct DmaBufPurgeablePin pin = { 0, 0 };
+        EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_PIN, &pin), 0);
+        EXPECT_EQ(ioctl(fd, DMA_BUF_PURGEABLE_UNPIN, &pin), 0);
         /* ChangeDmaBufData does NOT call Unpin, pin count stays default */
         EXPECT_EQ(pobj.GetPinStatus(), PIN_COUNT_DEFAULT);
     }

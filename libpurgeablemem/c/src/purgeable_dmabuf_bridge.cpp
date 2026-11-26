@@ -25,9 +25,10 @@
  * (such as purgeable_mem_c.c) can also call them.
  */
 
-int PurgDmaBufSetPurgeable(int dmabufFd)
+int PurgDmaBufSetPurgeable(int dmabufFd, unsigned int mode)
 {
-    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_SET_PURGEABLE));
+    __u32 modeArg = static_cast<__u32>(mode);
+    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_SET_PURGEABLE, &modeArg));
 }
 
 int PurgDmaBufGetPurgeable(int dmabufFd)
@@ -56,30 +57,14 @@ int PurgDmaBufGetPinStatus(int dmabufFd)
     return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_GET_PIN_STATUS));
 }
 
-int PurgDmaBufIsPurged(int dmabufFd)
-{
-    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_PURGEABLE_IS_PURGED));
-}
-
 int PurgDmaBufRebuildSuccess(int dmabufFd)
 {
     return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_PURGEABLE_REBUILD_SUCCESS));
 }
 
-int PurgDmaBufGetIno(int dmabufFd, unsigned long long *ino)
-{
-    if (ino == nullptr) {
-        return -1;
-    }
-    struct DmaBufPurgeableIno inoInfo = {};
-    int ret = TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_PURGEABLE_GET_INO, &inoInfo));
-    if (ret == 0) {
-        *ino = inoInfo.ino;
-    }
-    return ret;
-}
-
 int PurgDmaBufDisablePurgeable(int dmabufFd)
 {
-    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_DISABLE_PURGEABLE));
+    /* the old DMA_BUF_DISABLE_PURGEABLE ioctl is replaced by SET with MODE_NONE */
+    __u32 mode = PURGEABLE_DMA_BUF_MODE_NONE;
+    return TEMP_FAILURE_RETRY(ioctl(dmabufFd, DMA_BUF_SET_PURGEABLE, &mode));
 }

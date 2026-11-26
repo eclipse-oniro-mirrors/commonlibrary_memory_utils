@@ -31,10 +31,9 @@ extern "C" {
 
 /*
  * Purgeable extension ioctls of dma-buf, all of them work on a dma-buf fd.
- * Note: the kernel UAPI names these structs dma_buf_purgeable_pin and
- * dma_buf_purgeable_ino; they are renamed to CamelCase for the code style
- * rule and the layouts are identical. Remove the definitions below once a
- * future kernel UAPI header provides them.
+ * Note: the kernel UAPI names this struct dma_buf_purgeable_pin; it is
+ * renamed to CamelCase for the code style rule and the layout is identical.
+ * Remove the definition below once a future kernel UAPI header provides it.
  *
  * offset/len are reserved for future range-based pin/unpin. The current kernel
  * implementation (linux-6.6-lts) ignores them — DMA_BUF_PURGEABLE_PIN/UNPIN
@@ -45,12 +44,29 @@ struct DmaBufPurgeablePin {
     __u32 len; /* reserved: len of the range to be pinned/unpinned, 0 means to the end */
 };
 
-/* set the dma-buf purgeable */
+/*
+ * Mode carried by DMA_BUF_SET_PURGEABLE:
+ * MODE_NONE    — clear the purgeable feature of the dma-buf (replaces the
+ *                removed DMA_BUF_DISABLE_PURGEABLE ioctl);
+ * MODE_DISCARD — enable the purgeable feature: the kernel may discard the
+ *                pages under memory pressure and rebuild them on page fault.
+ */
+#define PURGEABLE_DMA_BUF_MODE_NONE 0
+#define PURGEABLE_DMA_BUF_MODE_DISCARD 1
+
+/*
+ * Set the purgeable mode of the dma-buf (arg: __u32, PURGEABLE_DMA_BUF_MODE_*).
+ * Return: the dmabuf internal inode number (positive) on success — callers
+ * can cache it for dfx; negative on failure (errno). 0 is never returned.
+ */
 #ifndef DMA_BUF_SET_PURGEABLE
-#define DMA_BUF_SET_PURGEABLE _IO(DMA_BUF_BASE, 9)
+#define DMA_BUF_SET_PURGEABLE _IOW(DMA_BUF_BASE, 9, __u32)
 #endif
 
-/* return 1 if the dma-buf has been set purgeable */
+/*
+ * Return the current purgeable mode of the dma-buf:
+ * PURGEABLE_DMA_BUF_MODE_NONE (not purgeable) or MODE_DISCARD (purgeable).
+ */
 #ifndef DMA_BUF_GET_PURGEABLE
 #define DMA_BUF_GET_PURGEABLE _IO(DMA_BUF_BASE, 10)
 #endif
@@ -70,35 +86,10 @@ struct DmaBufPurgeablePin {
 #define DMA_BUF_GET_PIN_STATUS _IO(DMA_BUF_BASE, 13)
 #endif
 
-/* return value > 0 means the dma-buf has been purged */
-#ifndef DMA_BUF_PURGEABLE_IS_PURGED
-#define DMA_BUF_PURGEABLE_IS_PURGED _IO(DMA_BUF_BASE, 14)
-#endif
-
-/* tell kernel the purged dma-buf has been rebuilt */
+/* tell kernel the purged dma-buf has been rebuilt, clears the purged state */
 #ifndef DMA_BUF_PURGEABLE_REBUILD_SUCCESS
 #define DMA_BUF_PURGEABLE_REBUILD_SUCCESS _IO(DMA_BUF_BASE, 15)
 #endif
-
-/* get dmabuf internal inode number */
-#ifndef DMA_BUF_PURGEABLE_GET_INO
-struct DmaBufPurgeableIno {
-    __u64 ino;
-};
-#define DMA_BUF_PURGEABLE_GET_INO _IOR(DMA_BUF_BASE, 16, struct DmaBufPurgeableIno)
-#endif
-
-/*
- * Disable the purgeable feature of the dma-buf in the kernel.
- * The kernel only allows this when the content is intact (not purged);
- * returns 0 on success, negative on failure (content purged or not purgeable).
- */
-#ifndef DMA_BUF_DISABLE_PURGEABLE
-#define DMA_BUF_DISABLE_PURGEABLE _IO(DMA_BUF_BASE, 17)
-#endif
-
-/* return value of DMA_BUF_GET_PURGEABLE: the dma-buf is purgeable */
-#define PURGEABLE_DMA_BUF_PURGEABLE 1
 
 /*
  * Heap flag of the purgeable DMA buffer allocation: must be set so that the
@@ -120,24 +111,30 @@ struct DmaBufPurgeableIno {
  */
 
 /*
- * PurgDmaBufSetPurgeable: set the dma-buf @dmabufFd purgeable.
+ * PurgDmaBufSetPurgeable: set the purgeable mode of the dma-buf @dmabufFd.
  * Input:   @dmabufFd: fd of the dma-buf.
- * Return:  the raw ioctl return value, 0 means success.
+ *          @mode: PURGEABLE_DMA_BUF_MODE_DISCARD to enable, MODE_NONE to clear.
+ * Return:  the raw ioctl return value — the dmabuf internal inode number
+ *          (positive) on success, negative on failure (errno). 0 is never
+ *          returned; callers can cache the ino for dfx.
  */
-int PurgDmaBufSetPurgeable(int dmabufFd);
+int PurgDmaBufSetPurgeable(int dmabufFd, unsigned int mode);
 
 /*
- * PurgDmaBufGetPurgeable: get purgeable state of the dma-buf @dmabufFd.
+ * PurgDmaBufGetPurgeable: get the current purgeable mode of the dma-buf @dmabufFd.
  * Input:   @dmabufFd: fd of the dma-buf.
- * Return:  the raw ioctl return value, 1 means the dma-buf is purgeable.
+ * Return:  the raw ioctl return value, PURGEABLE_DMA_BUF_MODE_DISCARD means
+ *          the dma-buf is purgeable, PURGEABLE_DMA_BUF_MODE_NONE means not.
  */
 int PurgDmaBufGetPurgeable(int dmabufFd);
 
 /*
  * PurgDmaBufPin: pin the dma-buf @dmabufFd, kernel cannot reclaim it while pinned.
  * Input:   @dmabufFd: fd of the dma-buf.
- * Input:   @pin: pin range, {0, 0} for the whole buffer (current kernel always pins the whole buffer).
- * Return:  the raw ioctl return value, 1 means the dma-buf was purged before this pin.
+ *          @pin: pin range, {0, 0} for the whole buffer (current kernel always pins the whole buffer).
+ * Return:  the raw ioctl return value, 1 means the dma-buf was purged before
+ *          this pin — this return is the purged snapshot that replaces the
+ *          removed DMA_BUF_PURGEABLE_IS_PURGED ioctl.
  */
 int PurgDmaBufPin(int dmabufFd, struct DmaBufPurgeablePin *pin);
 
@@ -157,31 +154,16 @@ int PurgDmaBufUnpin(int dmabufFd, struct DmaBufPurgeablePin *pin);
 int PurgDmaBufGetPinStatus(int dmabufFd);
 
 /*
- * PurgDmaBufIsPurged: check whether the dma-buf @dmabufFd has been purged.
- * Input:   @dmabufFd: fd of the dma-buf.
- * Return:  the raw ioctl return value, value > 0 means purged.
- */
-int PurgDmaBufIsPurged(int dmabufFd);
-
-/*
  * PurgDmaBufRebuildSuccess: tell kernel the purged dma-buf @dmabufFd has been rebuilt.
  * Input:   @dmabufFd: fd of the dma-buf.
- * Return:  the raw ioctl return value, 0 means success.
+ * Return:  the raw ioctl return value, 0 means success (kernel purged state cleared).
  */
 int PurgDmaBufRebuildSuccess(int dmabufFd);
 
 /*
- * PurgDmaBufGetIno: get the internal inode number of the dma-buf @dmabufFd.
- * Input:   @dmabufFd: fd of the dma-buf.
- * Input:   @ino: output pointer to store the inode number.
- * Return:  the raw ioctl return value, 0 means success (ino is filled).
- */
-int PurgDmaBufGetIno(int dmabufFd, unsigned long long *ino);
-
-/*
- * PurgDmaBufDisablePurgeable: disable the purgeable feature of the dma-buf
- * @dmabufFd in the kernel. The kernel only allows this when the content is
- * intact (not purged).
+ * PurgDmaBufDisablePurgeable: clear the purgeable feature of the dma-buf
+ * @dmabufFd in the kernel — SET_PURGEABLE with PURGEABLE_DMA_BUF_MODE_NONE.
+ * The kernel only allows this when the content is intact (not purged).
  * Input:   @dmabufFd: fd of the dma-buf.
  * Return:  the raw ioctl return value, 0 means success.
  */

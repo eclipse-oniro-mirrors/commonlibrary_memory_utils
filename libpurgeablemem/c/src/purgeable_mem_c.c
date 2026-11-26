@@ -49,6 +49,13 @@ struct PurgMem {
     int dmaBufFd;
     bool isSupport;
     bool isChange;
+    /*
+     * wasPurged: snapshot of the last PIN ioctl return — true when the
+     * buffer was purged before that pin (PIN return > 0). It replaces the
+     * removed DMA_BUF_PURGEABLE_IS_PURGED ioctl, and is cleared after the
+     * kernel accepts the rebuild (PurgDmaBufRebuildSuccess returns 0).
+     */
+    bool wasPurged;
 };
 
 static void LogPurgMemInfo(struct PurgMem *obj)
@@ -553,7 +560,8 @@ static bool IsPurged(struct PurgMem *purgObj)
         if (!purgObj->isSupport || purgObj->dmaBufFd < 0) {
             return false;
         }
-        return PurgDmaBufIsPurged(purgObj->dmaBufFd) > 0;
+        /* purged snapshot from the last PIN return (IS_PURGED ioctl removed) */
+        return purgObj->wasPurged;
     }
     return !UxpteIsPresent(purgObj->uxPageTable, (uint64_t)(purgObj->dataPtr), purgObj->dataSizeInput);
 }
@@ -585,6 +593,8 @@ static bool PurgMemDmaBufPinInternal(struct PurgMem *purgObj)
                 __func__, purgObj->dmaBufFd, ret);
             return false;
         }
+        /* snapshot: PIN returns 1 when the buffer was purged before this pin */
+        purgObj->wasPurged = (ret > 0);
         if (ret > 0) {
             /* the buffer was purged before this pin, needs rebuild */
             PM_HILOG_INFO_C(LOG_CORE, "%{public}s: Pin succ (was purged), fd:%{public}d",
@@ -637,7 +647,10 @@ static bool RebuildDmaBufIfPurged(struct PurgMem *purgObj)
         PurgMemDmaBufUnpinInternal(purgObj);
         return false;
     }
-    PurgDmaBufRebuildSuccess(purgObj->dmaBufFd);
+    if (PurgDmaBufRebuildSuccess(purgObj->dmaBufFd) == 0) {
+        /* rebuild accepted: clear the purged snapshot */
+        purgObj->wasPurged = false;
+    }
     return true;
 }
 
@@ -704,6 +717,7 @@ struct PurgMem *PurgMemCreateDmaBuf(PurgMemModifyFunc func, void *funcPara)
     pugObj->dmaBufFd = -1;
     pugObj->isSupport = false;
     pugObj->isChange = false;
+    pugObj->wasPurged = false;
 
     /* Create builder only — do NOT apply modify now: dataPtr is NULL for the
      * empty DMA shell. The modify will be applied via builder->BuildAll()
@@ -753,11 +767,17 @@ bool PurgMemChangeDmaBufData(struct PurgMem *purgObj, size_t size, int fd, void 
     purgObj->buildDataCount++;
     purgObj->isChange = true;
 
-    /* Mark DMA buffer as purgeable. Kernel default pin count is 1 after SET_PURGEABLE.
+    /* Mark DMA buffer as purgeable (SET_PURGEABLE with MODE_DISCARD).
+     * Kernel default pin count is 1 after SET_PURGEABLE.
      * Does NOT call Unpin — buffer already has data, keep it pinned.
      * Same as PurgeableDmaBuf::ChangeDmaBufData. */
-    PurgDmaBufSetPurgeable(purgObj->dmaBufFd);
-    purgObj->isSupport = (PurgDmaBufGetPurgeable(purgObj->dmaBufFd) == PURGEABLE_DMA_BUF_PURGEABLE);
+    /* SET succeeds only with a positive return (the dmabuf ino) — use > 0
+     * defensively, 0 is never a valid success value */
+    int setRet = PurgDmaBufSetPurgeable(purgObj->dmaBufFd, PURGEABLE_DMA_BUF_MODE_DISCARD);
+    purgObj->isSupport = (setRet > 0 &&
+        PurgDmaBufGetPurgeable(purgObj->dmaBufFd) == PURGEABLE_DMA_BUF_MODE_DISCARD);
+    /* fresh takeover: the buffer is not purged */
+    purgObj->wasPurged = false;
 
     PM_HILOG_INFO_C(LOG_CORE, "%{public}s: succ, fd:%{public}d size:%{public}zu isSupport:%{public}d",
         __func__, purgObj->dmaBufFd, purgObj->dataSizeInput, purgObj->isSupport);
